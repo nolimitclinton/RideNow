@@ -1,24 +1,22 @@
 import React, { useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
-import TabNavigator from "./src/navigation/TabNavigator";
+import AppDrawer from "./src/navigation/DrawerNavigation";
 import { StatusBar } from "expo-status-bar";
 import Onboarding from "./src/components/Onboarding";
-
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(true);
 
-  const handleFinishOnboarding = () => setShowOnboarding(false);
-
   return (
-    <>
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <NavigationContainer>
         {showOnboarding ? (
-          <Onboarding onDone={handleFinishOnboarding} />
+          <Onboarding onDone={() => setShowOnboarding(false)} />
         ) : (
-          <TabNavigator />
+          <AppDrawer /> // 👈 wraps your tabs with a drawer
         )}
       </NavigationContainer>
       <StatusBar style="dark" />
-    </>
+    </GestureHandlerRootView>
   );
 }
