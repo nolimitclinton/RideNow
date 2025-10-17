@@ -6,12 +6,12 @@ import {
   Text,
   ActivityIndicator,
 } from "react-native";
-import MapView, {
-  PROVIDER_GOOGLE,
-} from "react-native-maps";
+import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 import * as Location from "expo-location";
 import { COLORS } from "../constants/colors";
-import ModalScreen from "../components/ModalPopup";
+import CustomBottomModal from "../components/modals/BottomModal";
+import SmallButton from "../components/buttons/SmallButton";
+
 interface Coord {
   latitude: number;
   longitude: number;
@@ -19,6 +19,9 @@ interface Coord {
 
 export default function HomeScreen() {
   const [location, setLocation] = useState<Coord | null>(null);
+  const [enableModal, setModalValue] = useState(false);
+  const showModal = () => setModalValue(true);
+  const closeModal = () => setModalValue(false);
   const mapRef = useRef<MapView>(null);
 
   useEffect(() => {
@@ -39,7 +42,6 @@ export default function HomeScreen() {
         mapRef.current?.animateCamera({ center: cachedCoords, zoom: 30 });
       }
 
-      // Fetch a more accurate, fresh location in background
       const fresh = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
@@ -49,46 +51,62 @@ export default function HomeScreen() {
         longitude: fresh.coords.longitude,
       };
       setLocation(coords);
-
-      // animate camera to the new location
       mapRef.current?.animateCamera({ center: coords });
     })();
   }, []);
 
-  //Show loader until we have any location
   if (!location) {
     return (
       <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color={COLORS.GREEN}/>
+        <ActivityIndicator size="large" color={COLORS.GREEN} />
         <Text style={styles.loadingText}>Getting Location...</Text>
       </View>
     );
   }
 
-  // ✅ Render the map once we have a location
   return (
     <View style={styles.container}>
       <MapView
-      ref={mapRef}
-      provider={PROVIDER_GOOGLE}
-      style={styles.map}
-      initialRegion={{
-        latitude: location.latitude,
-        longitude: location.longitude,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      }}
-      region={{
-        latitude: location.latitude,
-        longitude: location.longitude,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      }}
-      showsUserLocation={true}
-      showsMyLocationButton={true}
-    />
+        ref={mapRef}
+        provider={PROVIDER_GOOGLE}
+        style={styles.map}
+        initialRegion={{
+          latitude: location.latitude,
+          longitude: location.longitude,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        }}
+        region={{
+          latitude: location.latitude,
+          longitude: location.longitude,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        }}
+        showsUserLocation={true}
+        showsMyLocationButton={true}
+      />
+
+      {/* ✅ Button overlayed on top of the map */}
+      <View style={styles.overlayButton}>
+        <SmallButton onPress={()=>{console.log("open drawer navigation")}} icon="Menu"/>
+      </View>
+
+      {/* ✅ Modal */}
+      {enableModal && (
+        <CustomBottomModal
+          visible={enableModal}
+          onClose={closeModal}
+          disableBackgroundClose={false}
+          title="My Custom Modal"
+          height={"70%"}
+          showCloseButton={false}
+        >
+          <Text style={{ textAlign: "center", marginVertical: 10 }}>
+            This is your modal content 🎉
+          </Text>
+        </CustomBottomModal>
+      )}
     </View>
-    
   );
 }
 
@@ -105,11 +123,17 @@ const styles = StyleSheet.create({
     color: COLORS.DARK_GRAY,
   },
   map: {
-   
     width: "100%",
     height: "100%",
   },
-  container:{
-     flex: 1,
-  }
+  container: {
+    flex: 1,
+  },
+  overlayButton: {
+    position: "absolute",
+    top:50,
+    left:20,
+    alignSelf: "center",
+    zIndex: 10,
+  },
 });

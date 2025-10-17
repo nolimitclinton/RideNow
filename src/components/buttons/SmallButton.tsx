@@ -4,7 +4,7 @@ import * as LucideIcons from 'lucide-react-native';
 import { COLORS } from '../../constants/colors';
 
 type SmallButtonProps = {
-  text: string;
+  text?: string;
   onPress?: () => void;
   icon?: keyof typeof LucideIcons;
   iconColor?: string;
@@ -42,7 +42,7 @@ export default function SmallButton({
       ]}
     >
       {RenderedIcon}
-      <Text style={[styles.text, textStyle]}>{text}</Text>
+      {text&&(<Text style={[styles.text, textStyle]}>{text}</Text>)}
     </Pressable>
   );
 }
