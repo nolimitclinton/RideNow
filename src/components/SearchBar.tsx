@@ -24,7 +24,9 @@ export type SearchBarProps = {
   rightIcon?: keyof typeof LucideIcons; // optional custom right icon (when not showing clear)
   iconColor?: string;
   containerStyle?: ViewStyle;
+  innerStyle?:ViewStyle;
   inputStyle?: TextStyle;
+  placeholderColor?:string;
 } & Omit<TextInputProps, 'onChangeText' | 'value'>;
 
 export type SearchBarHandle = {
@@ -49,6 +51,8 @@ export default React.forwardRef<SearchBarHandle, SearchBarProps>(function Search
     iconColor = COLORS.GRAY,
     containerStyle,
     inputStyle,
+    innerStyle,
+    placeholderColor,
     ...rest
   },
   ref
@@ -111,13 +115,13 @@ export default React.forwardRef<SearchBarHandle, SearchBarProps>(function Search
 
   return (
     <View style={[styles.container, containerStyle]}>
-      <View style={styles.inner}>
+      <View style={[styles.inner,innerStyle]}>
         <IconLeft color={iconColor} size={18} style={styles.leftIcon as any} />
         <TextInput
           ref={inputRef}
           style={[styles.input, inputStyle]}
           placeholder={placeholder}
-          placeholderTextColor={COLORS.DARK_GRAY}
+          placeholderTextColor={placeholderColor}
           value={value}
           onChangeText={handleChange}
           returnKeyType="search"
@@ -165,10 +169,11 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   inner: {
+    height:"25%",
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.WHITE,
-    borderRadius: 10,
+    borderRadius: 5,
     paddingHorizontal: 10,
     paddingVertical: Platform.OS === 'ios' ? 10 : 6,
     elevation: 2,
