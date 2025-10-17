@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   inner: {
-    height:"25%",
+  
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.WHITE,
