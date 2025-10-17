@@ -8,47 +8,40 @@ import {
 } from "react-native";
 import { COLORS } from "../../constants/colors";
 
-type ButtonVariant = "filled-green" | "outline-green" | "outline-black";
+type ButtonVariant = "default" | "outline-green" | "outline-black";
 
 interface Props {
   title: string;
-  onPress: () => void;
+  onPress?: () => void;
   variant?: ButtonVariant;
   icon?: ImageSourcePropType;
   style?: object;
 }
 
-export default function AppButton({
+export default function Button({
   title,
   onPress,
-  variant = "filled-green",
+  variant = "default",
   icon,
   style,
 }: Props) {
-  const getStyle = () => {
-    switch (variant) {
-      case "filled-green":
-        return {
-          backgroundColor: COLORS.GREEN,
-          borderColor: COLORS.GREEN,
-          textColor: COLORS.GREEN,
-        };
-      case "outline-green":
-        return {
-          backgroundColor: "transparent",
-          borderColor: COLORS.GREEN,
-          textColor: COLORS.GREEN,
-        };
-      case "outline-black":
-        return {
-          backgroundColor: "transparent",
-          borderColor: COLORS.DARK_GRAY,
-          textColor: COLORS.DARK_GRAY,
-        };
-    }
-  };
+  let backgroundColor = "";
+  let borderColor = "";
+  let textColor = "";
 
-  const { backgroundColor, borderColor, textColor } = getStyle();
+  if (variant === "default") {
+    backgroundColor = COLORS.GREEN;
+    borderColor = COLORS.GREEN;
+    textColor = COLORS.WHITE;
+  } else if (variant === "outline-green") {
+    backgroundColor = "transparent";
+    borderColor = COLORS.GREEN;
+    textColor = COLORS.GREEN;
+  } else if (variant === "outline-black") {
+    backgroundColor = "transparent";
+    borderColor = COLORS.DARK_GRAY;
+    textColor = COLORS.DARK_GRAY;
+  }
 
   return (
     <TouchableOpacity
@@ -65,11 +58,12 @@ export default function AppButton({
 const styles = StyleSheet.create({
   button: {
     flexDirection: "row",
+    width: "100%",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1.5,
     borderRadius: 8,
-    paddingVertical: 12,
+    paddingVertical: 16,
     paddingHorizontal: 16,
   },
   icon: {
@@ -80,6 +74,6 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "400",
   },
 });
