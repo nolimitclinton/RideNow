@@ -11,7 +11,7 @@ import MapView, {
 } from "react-native-maps";
 import * as Location from "expo-location";
 import { COLORS } from "../constants/colors";
-
+import ModalScreen from "../components/ModalPopup";
 interface Coord {
   latitude: number;
   longitude: number;
@@ -67,7 +67,8 @@ export default function HomeScreen() {
 
   // ✅ Render the map once we have a location
   return (
-    <MapView
+    <View style={styles.container}>
+      <MapView
       ref={mapRef}
       provider={PROVIDER_GOOGLE}
       style={styles.map}
@@ -86,6 +87,8 @@ export default function HomeScreen() {
       showsUserLocation={true}
       showsMyLocationButton={true}
     />
+    </View>
+    
   );
 }
 
@@ -102,8 +105,11 @@ const styles = StyleSheet.create({
     color: COLORS.DARK_GRAY,
   },
   map: {
-    flex: 1,
+   
     width: "100%",
     height: "100%",
   },
+  container:{
+     flex: 1,
+  }
 });
