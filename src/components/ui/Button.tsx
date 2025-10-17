@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { COLORS } from "../../constants/colors";
 
-type ButtonVariant = "default" | "outline-green" | "black_outline";
+type ButtonVariant = "default" | "outline-green" | "outline-black";
 
 interface Props {
   title: string;
@@ -37,7 +37,7 @@ export default function Button({
     backgroundColor = "transparent";
     borderColor = COLORS.GREEN;
     textColor = COLORS.GREEN;
-  } else if (variant === "black_outline") {
+  } else if (variant === "outline-black") {
     backgroundColor = "transparent";
     borderColor = COLORS.LIGHT_GRAY;
     textColor = COLORS.DARK_GRAY;

@@ -16,7 +16,7 @@ export default function HistoryScreen() {
       <Button
         icon={require("../../assets/icons/Gmail.png")}
         title="Hello"
-        variant="black_outline"
+        variant="outline-green"
       />
     </View>
   );
