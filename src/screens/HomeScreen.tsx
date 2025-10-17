@@ -7,21 +7,21 @@ import BottomPanel from '../components/modals/BottomPanel';
 import SmallButton from '../components/buttons/SmallButton';
 import { useNavigation, DrawerActions } from '@react-navigation/native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import SearchBar from '../components/SearchBar';
 
-// ✅ Define coordinate type
+// ✅ Coordinate type
 interface Coord {
   latitude: number;
   longitude: number;
 }
 
-// ✅ Define navigation type (you can replace `any` with your drawer param list later)
-type NavigationType = ReturnType<typeof useNavigation>;
-
 export default function HomeScreen() {
   const [location, setLocation] = useState<Coord | null>(null);
+  const [searchQuery, setSearchQuery] = useState(''); // 👈 Added state for SearchBar
   const mapRef = useRef<MapView | null>(null);
   const navigation = useNavigation();
 
+  // ✅ Location fetch
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -43,6 +43,16 @@ export default function HomeScreen() {
       mapRef.current?.animateCamera({ center: coords });
     })();
   }, []);
+
+  // ✅ Handler for search input
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+    console.log('User typing:', text);
+  };
+
+  const handleSearchSubmit = () => {
+    Alert.alert('Search submitted', `Searching for: ${searchQuery}`);
+  };
 
   if (!location) {
     return (
@@ -78,9 +88,31 @@ export default function HomeScreen() {
           />
         </View>
 
-        {/* ✅ Bottom Sheet Panel */}
+        {/* ✅ Bottom Sheet with SearchBar */}
         <BottomPanel>
-          <Text>Hello from Bottom Panel 👋</Text>
+          <View style={styles.bottomContent}>
+            <SearchBar
+              placeholder="From"
+              value={searchQuery}
+              onChangeText={handleSearchChange}
+              onSubmitEditing={handleSearchSubmit}
+              innerStyle={styles.searchBarInner}
+              inputStyle={styles.searchInput}
+              iconColor={COLORS.LIGHT_GRAY}
+              placeholderColor={COLORS.LIGHT_GRAY}
+            />
+             <SearchBar
+              placeholder="To"
+              value={searchQuery}
+              onChangeText={handleSearchChange}
+              onSubmitEditing={handleSearchSubmit}
+              innerStyle={styles.searchBarInner}
+              inputStyle={styles.searchInput}
+              iconColor={COLORS.LIGHT_GRAY}
+              placeholderColor={COLORS.LIGHT_GRAY}
+              
+            />
+          </View>
         </BottomPanel>
       </View>
     </GestureHandlerRootView>
@@ -107,5 +139,16 @@ const styles = StyleSheet.create({
     top: 50,
     left: 20,
     zIndex: 10,
+  },
+  bottomContent: {
+    padding: 10,
+  },
+  searchBarInner: {
+    backgroundColor: COLORS.GREEN,
+    marginBottom:10
+  },
+  searchInput: {
+    color: COLORS.LIGHT_GRAY,
+    
   },
 });
