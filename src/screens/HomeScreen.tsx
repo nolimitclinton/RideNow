@@ -10,6 +10,7 @@ import MapView, {
   PROVIDER_GOOGLE,
 } from "react-native-maps";
 import * as Location from "expo-location";
+import { COLORS } from "../constants/colors";
 
 interface Coord {
   latitude: number;
@@ -58,7 +59,7 @@ export default function HomeScreen() {
   if (!location) {
     return (
       <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color="#0000ff" />
+        <ActivityIndicator size="large" color={COLORS.GREEN}/>
         <Text style={styles.loadingText}>Getting Location...</Text>
       </View>
     );
@@ -93,12 +94,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.WHITE,
   },
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: "#333",
+    color: COLORS.DARK_GRAY,
   },
   map: {
     flex: 1,
