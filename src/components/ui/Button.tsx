@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { COLORS } from "../../constants/colors";
 
-type ButtonVariant = "default" | "outline-green" | "outline-black";
+type ButtonVariant = "default" | "outline-green" | "black_outline";
 
 interface Props {
   title: string;
@@ -37,9 +37,9 @@ export default function Button({
     backgroundColor = "transparent";
     borderColor = COLORS.GREEN;
     textColor = COLORS.GREEN;
-  } else if (variant === "outline-black") {
+  } else if (variant === "black_outline") {
     backgroundColor = "transparent";
-    borderColor = COLORS.DARK_GRAY;
+    borderColor = COLORS.LIGHT_GRAY;
     textColor = COLORS.DARK_GRAY;
   }
 
@@ -58,22 +58,22 @@ export default function Button({
 const styles = StyleSheet.create({
   button: {
     flexDirection: "row",
-    width: "100%",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderRadius: 8,
+    width: "100%",
     paddingVertical: 16,
     paddingHorizontal: 16,
   },
   icon: {
     width: 20,
     height: 20,
-    marginRight: 8,
+    marginRight: 10,
     resizeMode: "contain",
   },
   text: {
     fontSize: 16,
-    fontWeight: "400",
+    fontWeight: "600",
   },
 });
