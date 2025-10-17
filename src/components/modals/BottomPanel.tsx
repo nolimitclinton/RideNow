@@ -6,7 +6,7 @@ export default function BottomPanel({ children }:any) {
   const bottomSheetRef = useRef(null);
 
   // snap points (height levels)
-  const snapPoints = useMemo(() => ['25%', '50%'], []);
+  const snapPoints = useMemo(() => ['25%', '50%','70%'], []);
 
   // handle sheet change
   const handleSheetChanges = useCallback((index:any) => {
