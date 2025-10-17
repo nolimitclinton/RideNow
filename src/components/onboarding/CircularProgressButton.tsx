@@ -10,7 +10,6 @@ import {
 import Svg, { Circle } from "react-native-svg";
 import { COLORS } from "../../constants/colors";
 import { ArrowRight } from "lucide-react-native";
-import { Color } from "react-native/types_generated/Libraries/Animated/AnimatedExports";
 
 interface Props {
   progress: number; // 0..1
