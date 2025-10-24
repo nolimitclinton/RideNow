@@ -1,33 +1,33 @@
-import React from 'react';
+import React from "react";
+import { View, Text, Image, StyleSheet, ScrollView } from "react-native";
 import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  ScrollView,
-} from 'react-native';
-import { createDrawerNavigator, DrawerContentScrollView } from '@react-navigation/drawer';
-import { Ionicons } from '@expo/vector-icons';
-import TabNavigator from './TabNavigator';
-import HistoryScreen from '../screens/HistoryScreen';
-import SmallButton from '../components/buttons/SmallButton';
-import LongButton from '../components/buttons/LongButton';
-import { COLORS } from '../constants/colors';
+  createDrawerNavigator,
+  DrawerContentScrollView,
+} from "@react-navigation/drawer";
+import { Ionicons } from "@expo/vector-icons";
+import TabNavigator from "./TabNavigator";
+import HistoryScreen from "../screens/HistoryScreen";
+import SmallButton from "../components/buttons/SmallButton";
+import LongButton from "../components/buttons/LongButton";
+import { COLORS } from "../constants/colors";
 
 const Drawer = createDrawerNavigator();
 
-function CustomDrawerContent(props:any) {
+function CustomDrawerContent(props: any) {
   const user = {
-    name: 'Nate Samson',
-    email: 'nate@email.com',
-    avatar: 'https://i.pravatar.cc/100?img=68',
+    name: "Nate Samson",
+    email: "nate@email.com",
+    avatar: "https://i.pravatar.cc/100?img=68",
   };
 
   const { navigation } = props;
 
   return (
     <View style={styles.container}>
-      <DrawerContentScrollView {...props} contentContainerStyle={{ flexGrow: 1 }}>
+      <DrawerContentScrollView
+        {...props}
+        contentContainerStyle={{ flexGrow: 1 }}
+      >
         {/* 🔹 Back Button (SmallButton) */}
         <View style={{ paddingHorizontal: 15 }}>
           <SmallButton
@@ -53,34 +53,33 @@ function CustomDrawerContent(props:any) {
             text="History"
             icon="Clock"
             iconColor={COLORS.DARK_GRAY}
-            onPress={() => navigation.navigate('History')}
+            onPress={() => navigation.navigate("History")}
             style={styles.menuButton}
-            textStyle={{color:COLORS.DARK_GRAY}}
+            textStyle={{ color: COLORS.DARK_GRAY }}
           />
-          
-          
+
           <LongButton
             text="About Us"
             icon="Info"
             iconColor={COLORS.DARK_GRAY}
             onPress={() => {}}
             style={styles.menuButton}
-             textStyle={{color:COLORS.DARK_GRAY}}
+            textStyle={{ color: COLORS.DARK_GRAY }}
           />
           <LongButton
             text="Settings"
             icon="Settings"
             iconColor={COLORS.DARK_GRAY}
-            onPress={() =>{}}
+            onPress={() => {}}
             style={styles.menuButton}
-             textStyle={{color:COLORS.DARK_GRAY}}
+            textStyle={{ color: COLORS.DARK_GRAY }}
           />
-          
+
           {/* 🔹 Logout */}
           <LongButton
             text="Logout"
             icon="LogOut"
-            onPress={() => alert('Logged Out')}
+            onPress={() => alert("Logged Out")}
             //  textStyle={{color:COLORS.DARK_GRAY}}
             style={{ ...styles.loginButton, backgroundColor: COLORS.DARK_GRAY }}
           />
@@ -98,29 +97,28 @@ export default function AppDrawer() {
         headerShown: false,
         
         drawerStyle: {
-          width: '80%',
+          width: "80%",
           borderTopRightRadius: 20,
           borderBottomRightRadius: 20,
         },
       }}
       drawerContent={(props) => <CustomDrawerContent {...props} />}
     >
-      <Drawer.Screen name="Home" component={TabNavigator} />
-      <Drawer.Screen name="History" component={HistoryScreen} />
+      <Drawer.Screen name="MainTabs" component={TabNavigator} />
     </Drawer.Navigator>
   );
 }
 
 const styles = StyleSheet.create({
-    container:{ flex: 1, backgroundColor: COLORS.WHITE },
+  container: { flex: 1, backgroundColor: COLORS.WHITE },
   backButton: {
     backgroundColor: "transparent",
-    alignSelf: 'flex-start',
-    color:COLORS.DARK_GRAY,
+    alignSelf: "flex-start",
+    color: COLORS.DARK_GRAY,
     // alignItems:"flex-start"
   },
   profileContainer: {
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
     padding: 20,
     backgroundColor: COLORS.WHITE,
     borderBottomWidth: 1,
@@ -134,24 +132,22 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 22,
-    fontWeight: 'bold',
-    color:COLORS.DARK_GRAY,
+    fontWeight: "bold",
+    color: COLORS.DARK_GRAY,
     marginTop: 5,
   },
   email: {
     fontSize: 16,
-    color: 'gray',
+    color: "gray",
   },
   menuButton: {
     marginBottom: 12,
-    justifyContent:"flex-start",
-    backgroundColor:"transparent",
-    paddingLeft:5
-    
+    justifyContent: "flex-start",
+    backgroundColor: "transparent",
+    paddingLeft: 5,
   },
-  loginButton:{
-    marginBottom:12,
-    justifyContent:"flex-start"
-  }
+  loginButton: {
+    marginBottom: 12,
+    justifyContent: "flex-start",
+  },
 });
-

@@ -9,10 +9,10 @@ import {
   TouchableOpacity,
   Text,
 } from "react-native";
-import OnboardingItem from "./onboarding/OnboardingItem";
-import { slides } from "../constants/slides";
-import CircularProgressButton from "./onboarding/CircularProgressButton";
-import { COLORS } from "../constants/colors";
+import OnboardingItem from "./OnboardingItem";
+import { slides } from "../../constants/slides";
+import CircularProgressButton from "./CircularProgressButton";
+import { COLORS } from "../../constants/colors";
 
 interface Slide {
   id: number;
