@@ -1,61 +1,82 @@
-import React from 'react';
-import { View, StyleSheet, Pressable, Image, Text, Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React from "react";
+import { View, Pressable, Image, Text, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { COLORS } from "../constants/colors";
 
-type TabIconMap = {
-  [routeName: string]: { active: any; inactive: any; label?: string };
+type TabIcon = {
+  active: any;
+  inactive: any;
+  label: string;
 };
 
-const ICONS: TabIconMap = {
+type IconMap = Record<string, TabIcon>;
+
+const icons: IconMap = {
   Home: {
-    active: require('../../assets/icons/home-active.png'),
-    inactive: require('../../assets/icons/home-inactive.png'),
-    label: 'Home',
+    active: require("../../assets/icons/home-active.png"),
+    inactive: require("../../assets/icons/home-inactive.png"),
+    label: "Home",
   },
   History: {
-    active: require('../../assets/icons/history-active.png'),
-    inactive: require('../../assets/icons/history-inactive.png'),
-    label: 'History',
+    active: require("../../assets/icons/history-active.png"),
+    inactive: require("../../assets/icons/history-inactive.png"),
+    label: "History",
   },
   Profile: {
-    active: require('../../assets/icons/profile-active.png'),
-    inactive: require('../../assets/icons/profile-inactive.png'),
-    label: 'Profile',
+    active: require("../../assets/icons/profile-active.png"),
+    inactive: require("../../assets/icons/profile-inactive.png"),
+    label: "Profile",
   },
 };
 
-export default function CustomTabBar({ state, descriptors, navigation }: any) {
+export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 8) }]}>
-      {state.routes.map((route: any, index: number) => {
-        const isFocused = state.index === index;
-        const iconSet = ICONS[route.name];
+    <View
+      style={[
+        styles.container,
+        {
+          paddingBottom: insets.bottom,
+          height: 65 + insets.bottom, 
+        },
+      ]}
+    >
+      {state.routes.map((route, index) => {
+        const focused = state.index === index;
+        const icon = icons[route.name];
 
-        if (!iconSet) return null;
+        if (!icon) return null;
 
         const onPress = () => {
-          const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-          if (!isFocused && !event.defaultPrevented) navigation.navigate(route.name);
+          const event = navigation.emit({
+            type: "tabPress",
+            target: route.key,
+            canPreventDefault: true,
+          });
+
+          if (!focused && !event.defaultPrevented) {
+            navigation.navigate(route.name as never);
+          }
         };
 
         return (
           <Pressable
             key={route.key}
-            accessibilityRole="button"
-            accessibilityState={isFocused ? { selected: true } : {}}
             onPress={onPress}
-            style={({ pressed }) => [styles.item, pressed && { opacity: 0.7 }]}
-            hitSlop={8}
+            style={({ pressed }) => [
+              styles.item,
+              pressed && { opacity: 0.6 },
+            ]}
           >
             <Image
-              source={isFocused ? iconSet.active : iconSet.inactive}
+              source={focused ? icon.active : icon.inactive}
               style={styles.icon}
               resizeMode="contain"
             />
-            <Text style={[styles.label, isFocused && styles.labelActive]}>
-              {iconSet.label ?? route.name}
+            <Text style={[styles.label, focused && styles.activeLabel]}>
+              {icon.label}
             </Text>
           </Pressable>
         );
@@ -66,23 +87,29 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: '#E5E5E7',
-    backgroundColor: '#FFFFFF',
-    paddingTop: 8,
-    alignItems: 'center',
-    ...Platform.select({
-      android: { height: 64 },
-      ios: { minHeight: 64 },
-    }),
+    borderColor: COLORS.WHITE,
+    backgroundColor: COLORS.WHITE,
   },
   item: {
     flex: 1,
-    alignItems: 'center',
-    gap: 4,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  icon: { width: 24, height: 24 },
-  label: { fontSize: 11, color: '#A1A1A6' },
-  labelActive: { color: '#111113', fontWeight: '600' },
+  icon: {
+    width: 26,
+    height: 26,
+    marginBottom: 2,
+  },
+  label: {
+    fontSize: 11,
+    color: COLORS.LIGHT_GRAY,
+  },
+  activeLabel: {
+    color: COLORS.DARK_GRAY,
+    fontWeight: "600",
+  },
 });
