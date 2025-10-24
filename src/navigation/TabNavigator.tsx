@@ -18,6 +18,7 @@ export default function TabNavigator() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
+        tabBarHideOnKeyboard:true,
       }}
       tabBar={(props) => <CustomTabBar {...props} />} // 👈 added custom tab bar here
     >
