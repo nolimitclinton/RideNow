@@ -93,7 +93,9 @@ export default function AppDrawer() {
   return (
     <Drawer.Navigator
       screenOptions={{
+        
         headerShown: false,
+        
         drawerStyle: {
           width: "80%",
           borderTopRightRadius: 20,
