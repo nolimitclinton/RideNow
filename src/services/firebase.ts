@@ -3,7 +3,8 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
-import { getAuth, initializeAuth, type Persistence } from 'firebase/auth';
+import type { Auth, Persistence } from 'firebase/auth';
+import * as AuthMod from 'firebase/auth'; 
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -16,41 +17,25 @@ const firebaseConfig = {
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
-function resolveRnPersistence():
-  | ((storage: any) => Persistence)
-  | null {
+type RNGetPersistence = (storage: typeof AsyncStorage) => Persistence;
+const getReactNativePersistence =
+  (AuthMod as any).getReactNativePersistence as RNGetPersistence | undefined;
+
+let auth: Auth;
+
+if (Platform.OS === 'web') {
+  auth = AuthMod.getAuth(app);
+} else {
   try {
-    const modA = require('firebase/auth');
-    if (modA?.getReactNativePersistence) return modA.getReactNativePersistence;
-
-    const modB = require('firebase/auth/react-native');
-    if (modB?.getReactNativePersistence) return modB.getReactNativePersistence;
-  } catch {
-    
-  }
-  return null;
-}
-
-let auth = getAuth(app);
-
-if (Platform.OS !== 'web') {
-  const getRNP = resolveRnPersistence();
-  if (getRNP) {
-    try {
-      auth = initializeAuth(app, {
-        persistence: getRNP(AsyncStorage),
+    if (getReactNativePersistence) {
+      auth = AuthMod.initializeAuth(app, {
+        persistence: getReactNativePersistence(AsyncStorage),
       });
-    } catch {
-     
-      auth = getAuth(app);
+    } else {
+      auth = AuthMod.initializeAuth(app, {});
     }
-  } else {
-  
-    try {
-      auth = initializeAuth(app, {});
-    } catch {
-      auth = getAuth(app);
-    }
+  } catch {
+    auth = AuthMod.getAuth(app);
   }
 }
 
