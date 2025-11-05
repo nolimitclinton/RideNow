@@ -1,34 +1,44 @@
-import React from "react";
-import { View, Text, Image, StyleSheet, ScrollView } from "react-native";
-import {
-  createDrawerNavigator,
-  DrawerContentScrollView,
-} from "@react-navigation/drawer";
-import { Ionicons } from "@expo/vector-icons";
-import TabNavigator from "./TabNavigator";
-import HistoryScreen from "../screens/HistoryScreen";
-import SmallButton from "../components/buttons/SmallButton";
-import LongButton from "../components/buttons/LongButton";
-import { COLORS } from "../constants/colors";
+import React from 'react';
+import { View, Text, Image, StyleSheet, ScrollView, Alert } from 'react-native';
+import { createDrawerNavigator, DrawerContentScrollView } from '@react-navigation/drawer';
+import { useNavigation } from '@react-navigation/native';
+import TabNavigator from './TabNavigator';
+import LongButton from '../components/buttons/LongButton';
+import SmallButton from '../components/buttons/SmallButton';
+import { COLORS } from '../constants/colors';
+import { auth } from '../services/firebase';
+import { signOut } from 'firebase/auth';
 
-const Drawer = createDrawerNavigator();
+type DrawerParamList = {
+  MainTabs: undefined;
+  History: undefined; 
+};
+
+const Drawer = createDrawerNavigator<DrawerParamList>();
 
 function CustomDrawerContent(props: any) {
-  const user = {
-    name: "Nate Samson",
-    email: "nate@email.com",
-    avatar: "https://i.pravatar.cc/100?img=68",
-  };
+  const navigation = useNavigation<any>();
+  const user = auth.currentUser;
 
-  const { navigation } = props;
+  const displayName =
+    user?.displayName ||
+    (user?.email ? user.email.split('@')[0] : 'Rider');
+  const email = user?.email || '—';
+  const photoURL = user?.photoURL || 'https://i.pravatar.cc/100?img=68';
+
+  async function onLogout() {
+    try {
+      await signOut(auth);
+      props.navigation.closeDrawer();
+    } catch (e: any) {
+      Alert.alert('Logout failed', e?.message || 'Please try again.');
+    }
+  }
 
   return (
     <View style={styles.container}>
-      <DrawerContentScrollView
-        {...props}
-        contentContainerStyle={{ flexGrow: 1 }}
-      >
-        {/* 🔹 Back Button (SmallButton) */}
+      <DrawerContentScrollView {...props} contentContainerStyle={{ flexGrow: 1 }}>
+        {/* Back */}
         <View style={{ paddingHorizontal: 15 }}>
           <SmallButton
             text="Back"
@@ -40,20 +50,20 @@ function CustomDrawerContent(props: any) {
           />
         </View>
 
-        {/* 🔹 User Profile */}
+        {/* Profile */}
         <View style={styles.profileContainer}>
-          <Image source={{ uri: user.avatar }} style={styles.avatar} />
-          <Text style={styles.name}>{user.name}</Text>
-          <Text style={styles.email}>{user.email}</Text>
+          <Image source={{ uri: photoURL }} style={styles.avatar} />
+          <Text style={styles.name}>{displayName}</Text>
+          <Text style={styles.email}>{email}</Text>
         </View>
 
-        {/* 🔹 Menu Section */}
+        {/* Menu */}
         <ScrollView style={{ paddingHorizontal: 20 }}>
           <LongButton
             text="History"
             icon="Clock"
             iconColor={COLORS.DARK_GRAY}
-            onPress={() => navigation.navigate("History")}
+            onPress={() => navigation.navigate('History' as never)}
             style={styles.menuButton}
             textStyle={{ color: COLORS.DARK_GRAY }}
           />
@@ -66,6 +76,7 @@ function CustomDrawerContent(props: any) {
             style={styles.menuButton}
             textStyle={{ color: COLORS.DARK_GRAY }}
           />
+
           <LongButton
             text="Settings"
             icon="Settings"
@@ -75,12 +86,11 @@ function CustomDrawerContent(props: any) {
             textStyle={{ color: COLORS.DARK_GRAY }}
           />
 
-          {/* 🔹 Logout */}
+          {/* Logout */}
           <LongButton
             text="Logout"
             icon="LogOut"
-            onPress={() => alert("Logged Out")}
-            //  textStyle={{color:COLORS.DARK_GRAY}}
+            onPress={onLogout}
             style={{ ...styles.loginButton, backgroundColor: COLORS.DARK_GRAY }}
           />
         </ScrollView>
@@ -97,7 +107,7 @@ export default function AppDrawer() {
         headerShown: false,
         
         drawerStyle: {
-          width: "80%",
+          width: '80%',
           borderTopRightRadius: 20,
           borderBottomRightRadius: 20,
         },
@@ -105,49 +115,26 @@ export default function AppDrawer() {
       drawerContent={(props) => <CustomDrawerContent {...props} />}
     >
       <Drawer.Screen name="MainTabs" component={TabNavigator} />
+      {/* If you have a dedicated history screen route (not just tab), add it here:
+      <Drawer.Screen name="History" component={HistoryScreen} />
+      */}
     </Drawer.Navigator>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.WHITE },
-  backButton: {
-    backgroundColor: "transparent",
-    alignSelf: "flex-start",
-    color: COLORS.DARK_GRAY,
-    // alignItems:"flex-start"
-  },
+  backButton: { backgroundColor: 'transparent', alignSelf: 'flex-start' },
   profileContainer: {
-    alignItems: "flex-start",
+    alignItems: 'flex-start',
     padding: 20,
     backgroundColor: COLORS.WHITE,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.WHITE,
   },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    marginBottom: 10,
-  },
-  name: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: COLORS.DARK_GRAY,
-    marginTop: 5,
-  },
-  email: {
-    fontSize: 16,
-    color: "gray",
-  },
-  menuButton: {
-    marginBottom: 12,
-    justifyContent: "flex-start",
-    backgroundColor: "transparent",
-    paddingLeft: 5,
-  },
-  loginButton: {
-    marginBottom: 12,
-    justifyContent: "flex-start",
-  },
+  avatar: { width: 80, height: 80, borderRadius: 40, marginBottom: 10 },
+  name: { fontSize: 22, fontWeight: 'bold', color: COLORS.DARK_GRAY, marginTop: 5 },
+  email: { fontSize: 16, color: 'gray' },
+  menuButton: { marginBottom: 12, justifyContent: 'flex-start', backgroundColor: 'transparent', paddingLeft: 5 },
+  loginButton: { marginBottom: 12, justifyContent: 'flex-start' },
 });
