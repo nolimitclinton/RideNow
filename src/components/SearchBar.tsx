@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import {
   View,
   TextInput,
@@ -17,7 +17,7 @@ export type SearchBarProps = {
   onChangeText?: (text: string) => void;
   placeholder?: string;
   onSubmitEditing?: () => void;
-  debounce?: number; // ms
+  // debounce removed: keystrokes are forwarded immediately
   showClear?: boolean;
   leftIcon?: keyof typeof LucideIcons;
   rightIcon?: keyof typeof LucideIcons;
@@ -43,7 +43,7 @@ export default React.forwardRef<SearchBarHandle, SearchBarProps>(function Search
     onChangeText,
     placeholder = 'Search',
     onSubmitEditing,
-    debounce = 300, // default 300ms
+    // debounce removed
     showClear = true,
     leftIcon = DEFAULT_LEFT_ICON,
     rightIcon,
@@ -60,8 +60,6 @@ export default React.forwardRef<SearchBarHandle, SearchBarProps>(function Search
   const [internal, setInternal] = useState(controlledValue ?? '');
   const value = controlledValue !== undefined ? controlledValue : internal;
 
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
   useImperativeHandle(ref, () => ({
     focus: () => inputRef.current?.focus(),
     blur: () => inputRef.current?.blur(),
@@ -70,33 +68,16 @@ export default React.forwardRef<SearchBarHandle, SearchBarProps>(function Search
       inputRef.current?.clear();
     },
   }));
-
   const handleChange = useCallback(
     (text: string) => {
       // update internal state immediately for UI
       if (controlledValue === undefined) setInternal(text);
 
-      // clear previous debounce
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-
-      // call onChangeText after debounce
-      if (debounce && debounce > 0) {
-        timeoutRef.current = setTimeout(() => {
-          onChangeText?.(text);
-        }, debounce);
-      } else {
-        onChangeText?.(text);
-      }
+      // forward immediately (no debounce)
+      onChangeText?.(text);
     },
-    [debounce, onChangeText, controlledValue]
+    [onChangeText, controlledValue]
   );
-
-  // cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
 
   const IconLeft = useMemo(() => {
     return (LucideIcons[leftIcon] ?? LucideIcons[DEFAULT_LEFT_ICON]) as React.ComponentType<any>;
@@ -131,7 +112,6 @@ export default React.forwardRef<SearchBarHandle, SearchBarProps>(function Search
             onPress={() => {
               if (controlledValue !== undefined) onChangeText?.('');
               else setInternal('');
-              if (timeoutRef.current) clearTimeout(timeoutRef.current);
               onChangeText?.('');
               inputRef.current?.focus();
             }}

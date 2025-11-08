@@ -1,58 +1,177 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, ActivityIndicator, ScrollView, Pressable, StyleSheet, Alert } from 'react-native';
-import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
-import * as Location from 'expo-location';
-import BottomPanel, { BottomPanelHandle } from '../components/modals/BottomPanel';
-import SearchBar from '../components/SearchBar';
-import SmallButton from '../components/buttons/SmallButton';
-import { COLORS } from '../constants/colors';
-import { useNavigation, DrawerActions } from '@react-navigation/native';
-import { fetchPhoton } from '../constants/apiRoutes';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import React, { useEffect, useRef, useState } from "react";
+import {
+  View,
+  Text,
+  ActivityIndicator,
+  StyleSheet,
+  Alert,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  Keyboard,
+  ScrollView
+} from "react-native";
+import MapView, { PROVIDER_GOOGLE, Marker } from "react-native-maps";
+import * as Location from "expo-location";
+import { useNavigation, DrawerActions } from "@react-navigation/native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import SearchBar from "../components/SearchBar";
+import BottomPanel, { BottomPanelHandle } from "../components/modals/BottomPanel";
+import SmallButton from "../components/buttons/SmallButton";
+import { COLORS } from "../constants/colors";
+import "react-native-get-random-values"; // ✅ prevents UUID crash
+
+const GOOGLE_API_KEY = "AIzaSyC3B1BNTq8re47QL2ltM5zdZYujKIX4tKs"; // 🔑 replace with your API Key
 
 export default function HomeScreen() {
-  const [location, setLocation] = useState<any>(null);
-  const [fromQuery, setFromQuery] = useState('');
-  const [toQuery, setToQuery] = useState('');
-  const [fromSuggestions, setFromSuggestions] = useState<any[]>([]);
-  const [toSuggestions, setToSuggestions] = useState<any[]>([]);
+  const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locationName, setLocationName] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [destinationQuery, setDestinationQuery] = useState("");
+  const [destinationResults, setDestinationResults] = useState<any[]>([]);
+  const [destinationMarker, setDestinationMarker] = useState<{ latitude: number; longitude: number } | null>(null);
 
   const mapRef = useRef<MapView | null>(null);
-  const bottomSheetRef = useRef<BottomPanelHandle>(null); // ✅ ref for bottom sheet
+  const bottomSheetRef = useRef<BottomPanelHandle>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debounceTimerRefDest = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navigation = useNavigation();
+
+  const [activeInput, setActiveInput] = useState<"origin" | "destination" | null>(null);
+
+  const DEBOUNCE_DELAY = 500; // ms
+
+  const handleSearchFocus = () => {
+    bottomSheetRef.current?.snapToIndex(2);
+  };
+
+  // Update search text immediately, but debounce the places API call
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+
+    // Clear existing timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // If text is empty, clear results immediately
+    if (!text) {
+      setSearchResults([]);
+      return;
+    }
+
+    // Set new timer to call fetchPlaces after delay
+    debounceTimerRef.current = setTimeout(() => {
+      fetchPlaces(text);
+    }, DEBOUNCE_DELAY);
+  };
+
+  const handleDestinationFocus = () => {
+    setActiveInput("destination");
+    bottomSheetRef.current?.snapToIndex(2);
+  };
+
+  const handleDestinationChange = (text: string) => {
+    setDestinationQuery(text);
+
+    // Clear existing timer
+    if (debounceTimerRefDest.current) {
+      clearTimeout(debounceTimerRefDest.current);
+    }
+
+    // If text is empty, clear results immediately
+    if (!text) {
+      setDestinationResults([]);
+      setDestinationMarker(null);
+      return;
+    }
+
+    // Set new timer to call fetchPlaces after delay
+    debounceTimerRefDest.current = setTimeout(() => {
+      fetchPlaces(text, setDestinationResults);
+    }, DEBOUNCE_DELAY);
+  };
+
+  // 🔹 Fetch autocomplete results from Google Places
+  const fetchPlaces = async (
+    query: string,
+    setResults: React.Dispatch<React.SetStateAction<any[]>> = setSearchResults
+  ) => {
+    if (!query) {
+      setResults([]);
+      return;
+    }
+
+    try {
+      const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?key=${GOOGLE_API_KEY}&input=${encodeURIComponent(query)}&types=establishment`;
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (data.status === "OK") {
+        setResults(data.predictions);
+      } else {
+        setResults([]);
+        console.warn("Google Places error:", data.status);
+      }
+    } catch (error) {
+      console.error("Places fetch error:", error);
+    }
+  };
 
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return Alert.alert('Permission denied');
-
-      const cached = await Location.getLastKnownPositionAsync();
-      if (cached) {
-        const coords = { latitude: cached.coords.latitude, longitude: cached.coords.longitude };
-        setLocation(coords);
-        mapRef.current?.animateCamera({ center: coords });
+      if (status !== "granted") {
+        Alert.alert("Permission denied", "Location access is required.");
+        return;
       }
 
-      const fresh = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const coords = { latitude: fresh.coords.latitude, longitude: fresh.coords.longitude };
-      setLocation(coords);
-      mapRef.current?.animateCamera({ center: coords });
+      let coords;
+      const cachedLocation = await Location.getLastKnownPositionAsync();
+      if (cachedLocation) {
+        coords = cachedLocation.coords;
+      } else {
+        const currentLocation = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        coords = currentLocation.coords;
+      }
+
+      setLocation({ latitude: coords.latitude, longitude: coords.longitude });
+
+      // Animate to current location with zoom
+      mapRef.current?.animateCamera({
+        center: {
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+        },
+        zoom: 15,
+        heading: 0,
+        pitch: 0
+      }, { duration: 1000 }); // Animation duration in ms
+
+      const address = await Location.reverseGeocodeAsync({
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+      });
+
+      if (address.length > 0) {
+        const place = address[0];
+        setLocationName(place.city ?? "");
+        console.log("Current location name:", place.name, place.street, place.city, place.region);
+      }
     })();
+
+    // cleanup: clear debounce timers on unmount
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+      if (debounceTimerRefDest.current) {
+        clearTimeout(debounceTimerRefDest.current);
+        debounceTimerRefDest.current = null;
+      }
+    };
   }, []);
-
-  const handleFromChange = async (text: string) => {
-    setFromQuery(text);
-   // bottomSheetRef.current?.snapToIndex(1); // ✅ snap to 50%
-    const results = await fetchPhoton(text);
-    setFromSuggestions(results);
-  };
-
-  const handleToChange = async (text: string) => {
-    setToQuery(text);
-  //  bottomSheetRef.current?.snapToIndex(1); // ✅ snap to 50%
-    const results = await fetchPhoton(text);
-    setToSuggestions(results);
-  };
 
   if (!location) {
     return (
@@ -65,72 +184,157 @@ export default function HomeScreen() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <View style={styles.container}>
-        <MapView
-          ref={mapRef}
-          provider={PROVIDER_GOOGLE}
-          style={StyleSheet.absoluteFillObject}
-          initialRegion={{ latitude: location.latitude, longitude: location.longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 }}
-          showsUserLocation
-          showsMyLocationButton
-        />
+      <TouchableWithoutFeedback
+        onPress={() => {
+          bottomSheetRef.current?.snapToIndex(0);
+          Keyboard.dismiss();
+        }}
+      >
+        <View style={styles.container}>
+          {/* 🗺️ Map */}
+          <MapView
+            ref={mapRef}
+            provider={PROVIDER_GOOGLE}
+            style={StyleSheet.absoluteFillObject}
+            initialRegion={{
+              latitude: location.latitude,
+              longitude: location.longitude,
+              latitudeDelta: 0.05,
+              longitudeDelta: 0.05,
+            }}
+            showsUserLocation
+            showsMyLocationButton
+          >
+            {/* Current Location Marker */}
+            <Marker
+              coordinate={{ latitude: location.latitude, longitude: location.longitude }}
+              title={locationName || "Current Location"}
+              description={searchQuery || "Your location"}
+              pinColor="blue"
+            />
+            
+            {/* Destination Marker */}
+            {destinationMarker ? (
+              <Marker
+                coordinate={{ latitude: destinationMarker.latitude, longitude: destinationMarker.longitude }}
+                title={destinationQuery || "Destination"}
+                pinColor={COLORS.GREEN}
+              />
+            ) : null}
+          </MapView>
 
-        <View style={styles.overlayButton}>
-          <SmallButton onPress={() => navigation.dispatch(DrawerActions.openDrawer())} icon="Menu" />
+          {/* ☰ Drawer Menu Button */}
+          <View style={styles.overlayButton}>
+            <SmallButton
+              onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+              icon="Menu"
+            />
+          </View>
+
+          {/* 📍 Bottom Panel with Search Bar */}
+          <BottomPanel ref={bottomSheetRef}>
+            <View style={styles.bottomContent}>
+              <Text style={styles.panelTitle}>Search Location</Text>
+
+              <View style={styles.searchContainer}>
+                <SearchBar
+                  placeholder={locationName || "Current Location"}
+                  value={searchQuery}
+                  onChangeText={handleSearchChange}
+                  onFocus={() => {
+                    setActiveInput("origin");
+                    handleSearchFocus();
+                  }}
+                />
+
+                <SearchBar
+                  placeholder="Destination"
+                  value={destinationQuery}
+                  onChangeText={handleDestinationChange}
+                  onFocus={handleDestinationFocus}
+                />
+
+                <ScrollView style={{ maxHeight: 250 }}>
+                  { (activeInput === "destination" ? destinationResults : searchResults).length === 0 ? (
+                    <Text style={{ padding: 10 }}>No results</Text>
+                  ) : (
+                    (activeInput === "destination" ? destinationResults : searchResults).map((item) => (
+                      <TouchableOpacity
+                        key={item.place_id}
+                        onPress={async () => {
+                          const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${item.place_id}&key=${GOOGLE_API_KEY}`;
+                          const detailsRes = await fetch(detailsUrl);
+                          const detailsData = await detailsRes.json();
+
+                          if (detailsData.status === "OK") {
+                            const coords = detailsData.result.geometry.location;
+                            // If destination input is active, add a marker there and center map without overwriting user location
+                            if (activeInput === "destination") {
+                              setDestinationMarker({ latitude: coords.lat, longitude: coords.lng });
+                              mapRef.current?.animateCamera({
+                                center: { latitude: coords.lat, longitude: coords.lng },
+                                zoom: 15,
+                              });
+                              bottomSheetRef.current?.snapToIndex(0); // collapse sheet
+                              setDestinationResults([]);
+                              setDestinationQuery(item.description);
+                            } else {
+                              // Origin selection: update main location and center map
+                              setLocation({
+                                latitude: coords.lat,
+                                longitude: coords.lng,
+                              });
+                              mapRef.current?.animateCamera({
+                                center: { latitude: coords.lat, longitude: coords.lng },
+                                zoom: 15,
+                              });
+                              bottomSheetRef.current?.snapToIndex(0); // collapse sheet
+                              setSearchResults([]);
+                              setSearchQuery(item.description);
+                            }
+                          }
+                        }}
+                        style={styles.resultItem}
+                      >
+                        <Text>{item.description}</Text>
+                      </TouchableOpacity>
+                    ))
+                  )}
+                </ScrollView>
+              </View>
+            </View>
+          </BottomPanel>
         </View>
-
-        <BottomPanel ref={bottomSheetRef}>
-          <Text style={styles.panelTitle}>Select Address</Text>
-          <ScrollView style={styles.bottomContent} keyboardShouldPersistTaps="handled">
-            <SearchBar onFocus={() => bottomSheetRef.current?.snapToIndex(2)} placeholder="From" value={fromQuery} onChangeText={handleFromChange} innerStyle={styles.searchBarInner} inputStyle={styles.searchInput} iconColor={COLORS.LIGHT_GRAY} debounce={20} />
-            {fromSuggestions.map(item => (
-              <Pressable
-                key={item.properties.osm_id}
-                onPress={() => {
-                  setFromQuery(item.properties.name);
-                  setFromSuggestions([]);
-                  mapRef.current?.animateCamera({ center: { latitude: item.geometry.coordinates[1], longitude: item.geometry.coordinates[0] }, zoom: 15 });
-                }}
-                style={styles.suggestionItem}
-              >
-                <Text style={styles.suggestionText}>
-                  {item.properties.name}, {item.properties.city || item.properties.country}
-                </Text>
-              </Pressable>
-            ))}
-
-            <SearchBar onFocus={() => bottomSheetRef.current?.snapToIndex(2)} placeholder="To" value={toQuery} onChangeText={handleToChange} innerStyle={styles.searchBarInner} inputStyle={styles.searchInput} iconColor={COLORS.LIGHT_GRAY} debounce={20} />
-            {toSuggestions.map(item => (
-              <Pressable
-                key={item.properties.osm_id}
-                onPress={() => {
-                  setToQuery(item.properties.name);
-                  setToSuggestions([]);
-                  mapRef.current?.animateCamera({ center: { latitude: item.geometry.coordinates[1], longitude: item.geometry.coordinates[0] }, zoom: 15 });
-                }}
-                style={styles.suggestionItem}
-              >
-                <Text style={styles.suggestionText}>
-                  {item.properties.name}, {item.properties.city || item.properties.country}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </BottomPanel>
-      </View>
+      </TouchableWithoutFeedback>
     </GestureHandlerRootView>
   );
 }
 
+// 🎨 Styles
 const styles = StyleSheet.create({
-  loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.WHITE },
-  loadingText: { marginTop: 10, fontSize: 16, color: COLORS.DARK_GRAY },
   container: { flex: 1 },
-  overlayButton: { position: 'absolute', top: 50, left: 20, zIndex: 10 },
-  bottomContent: { padding: 10, maxHeight: 300 },
-  panelTitle: { fontWeight: 'bold', alignSelf: 'center', fontSize: 20 },
-  searchBarInner: { backgroundColor: COLORS.GREEN, marginBottom: 10 },
-  searchInput: { color: COLORS.LIGHT_GRAY },
-  suggestionItem: { paddingVertical: 8, paddingHorizontal: 10 },
-  suggestionText: { color: COLORS.DARK_GRAY },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.WHITE,
+  },
+  loadingText: { marginTop: 10, fontSize: 16, color: COLORS.DARK_GRAY },
+  overlayButton: { position: "absolute", top: 50, left: 20, zIndex: 10 },
+  bottomContent: { gap: 5, padding: 10 },
+  panelTitle: { fontWeight: "bold", alignSelf: "center", fontSize: 20 },
+  searchContainer: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "flex-start",
+    gap: 5,
+    backgroundColor: COLORS.LIGHT_GRAY,
+    borderRadius: 8,
+  
+  },
+  resultItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ccc",
+  },
 });
