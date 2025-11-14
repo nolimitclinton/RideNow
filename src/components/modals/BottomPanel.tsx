@@ -13,7 +13,7 @@ type BottomPanelProps = {
 const BottomPanel = forwardRef<BottomPanelHandle, BottomPanelProps>(({ children }, ref) => {
   const bottomSheetRef = useRef<BottomSheet>(null);
 
-  const snapPoints = useMemo(() => ['25%', '75%'], []); 
+  const snapPoints = useMemo(() => ['25%', '50','75%'], []); 
 
   // Handle sheet changes
   const handleSheetChanges = useCallback((index: number) => {

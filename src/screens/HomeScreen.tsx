@@ -8,9 +8,10 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   Keyboard,
-  ScrollView
+  ScrollView,
+  Animated
 } from "react-native";
-import MapView, { PROVIDER_GOOGLE, Marker } from "react-native-maps";
+import MapView, { PROVIDER_GOOGLE, Marker, Polyline } from "react-native-maps";
 import * as Location from "expo-location";
 import { useNavigation, DrawerActions } from "@react-navigation/native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -19,6 +20,7 @@ import BottomPanel, { BottomPanelHandle } from "../components/modals/BottomPanel
 import SmallButton from "../components/buttons/SmallButton";
 import { COLORS } from "../constants/colors";
 import "react-native-get-random-values"; // ✅ prevents UUID crash
+import LongButton from "../components/buttons/LongButton";
 
 const GOOGLE_API_KEY = "AIzaSyC3B1BNTq8re47QL2ltM5zdZYujKIX4tKs"; // 🔑 replace with your API Key
 
@@ -30,8 +32,42 @@ export default function HomeScreen() {
   const [destinationQuery, setDestinationQuery] = useState("");
   const [destinationResults, setDestinationResults] = useState<any[]>([]);
   const [destinationMarker, setDestinationMarker] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [routeCoords, setRouteCoords] = useState<{ latitude: number; longitude: number }[]>([]);
+  const [isSearchingDriver, setIsSearchingDriver] = useState(false);
+  const [driverLocation, setDriverLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [isDriverMoving, setIsDriverMoving] = useState(false);
 
   const mapRef = useRef<MapView | null>(null);
+
+  const findDriver = async () => {
+    if (isSearchingDriver || isDriverMoving) return;
+    
+    setIsSearchingDriver(true);
+    // Simulate searching for driver for 3 seconds
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    // Start driver at current location
+    if (location) {
+      setDriverLocation(location);
+      setIsSearchingDriver(false);
+      setIsDriverMoving(true);
+      handleSearchFocus(1);
+      // Animate driver along route
+      let currentIndex = 0;
+      const animateDriver = async () => {
+        while (currentIndex < routeCoords.length - 1) {
+          setDriverLocation(routeCoords[currentIndex]);
+          currentIndex++;
+          await new Promise(resolve => setTimeout(resolve, 300)); // Move every 100ms
+        }
+        // Reached destination
+        setIsDriverMoving(false);
+        Alert.alert("Arrived!", "I don reach!");
+      };
+      
+      animateDriver();
+    }
+  };
   const bottomSheetRef = useRef<BottomPanelHandle>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const debounceTimerRefDest = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -41,8 +77,31 @@ export default function HomeScreen() {
 
   const DEBOUNCE_DELAY = 500; // ms
 
-  const handleSearchFocus = () => {
-    bottomSheetRef.current?.snapToIndex(2);
+  const handleSearchFocus = (num:number = 2) => {
+    bottomSheetRef.current?.snapToIndex(num);
+  };
+
+  // Get route from OSRM between two points (start/end are { latitude, longitude })
+  const getRouteFromOSRM = async (
+    start: { latitude: number; longitude: number },
+    end: { latitude: number; longitude: number }
+  ): Promise<{ latitude: number; longitude: number }[]> => {
+    try {
+      const response = await fetch(
+        `https://router.project-osrm.org/route/v1/driving/${start.longitude},${start.latitude};${end.longitude},${end.latitude}?overview=full&geometries=geojson`
+      );
+      const data = await response.json();
+
+      const coords = data.routes[0].geometry.coordinates.map(([lng, lat]: [number, number]) => ({
+        latitude: lat,
+        longitude: lng,
+      }));
+
+      return coords;
+    } catch (error) {
+      console.error("OSRM route error:", error);
+      return [];
+    }
   };
 
   // Update search text immediately, but debounce the places API call
@@ -83,6 +142,7 @@ export default function HomeScreen() {
     if (!text) {
       setDestinationResults([]);
       setDestinationMarker(null);
+      setRouteCoords([]);
       return;
     }
 
@@ -221,6 +281,20 @@ export default function HomeScreen() {
                 pinColor={COLORS.GREEN}
               />
             ) : null}
+            {/* Route Polyline */}
+            {routeCoords.length > 0 ? (
+              <Polyline coordinates={routeCoords} strokeWidth={4} strokeColor={COLORS.GREEN} />
+            ) : null}
+
+            {/* Driver Marker */}
+            {driverLocation && (isSearchingDriver || isDriverMoving) ? (
+              <Marker
+                coordinate={driverLocation}
+                title="Driver"
+                description={isSearchingDriver ? "Finding closest driver..." : "On the way"}
+                pinColor="yellow"
+              />
+            ) : null}
           </MapView>
 
           {/* ☰ Drawer Menu Button */}
@@ -256,7 +330,7 @@ export default function HomeScreen() {
 
                 <ScrollView style={{ maxHeight: 250 }}>
                   { (activeInput === "destination" ? destinationResults : searchResults).length === 0 ? (
-                    <Text style={{ padding: 10 }}>No results</Text>
+                   null
                   ) : (
                     (activeInput === "destination" ? destinationResults : searchResults).map((item) => (
                       <TouchableOpacity
@@ -278,6 +352,16 @@ export default function HomeScreen() {
                               bottomSheetRef.current?.snapToIndex(0); // collapse sheet
                               setDestinationResults([]);
                               setDestinationQuery(item.description);
+                              // compute route from current location to destination
+                              if (location) {
+                                const route = await getRouteFromOSRM(
+                                  { latitude: location.latitude, longitude: location.longitude },
+                                  { latitude: coords.lat, longitude: coords.lng }
+                                );
+                                setRouteCoords(route);
+                              } else {
+                                setRouteCoords([]);
+                              }
                             } else {
                               // Origin selection: update main location and center map
                               setLocation({
@@ -291,6 +375,8 @@ export default function HomeScreen() {
                               bottomSheetRef.current?.snapToIndex(0); // collapse sheet
                               setSearchResults([]);
                               setSearchQuery(item.description);
+                              // clear any existing route when origin is manually set
+                              setRouteCoords([]);
                             }
                           }
                         }}
@@ -301,6 +387,15 @@ export default function HomeScreen() {
                     ))
                   )}
                 </ScrollView>
+                {destinationMarker ? (
+                  <>
+                    {handleSearchFocus(2)}
+                    <LongButton 
+                      text={isSearchingDriver ? "Finding Driver..." : (isDriverMoving ? "Driving to destination" : "Find Driver")}
+                      onPress={findDriver}
+                    />
+                  </>
+                ): null}
               </View>
             </View>
           </BottomPanel>
@@ -328,13 +423,13 @@ const styles = StyleSheet.create({
     height: "100%",
     justifyContent: "flex-start",
     gap: 5,
-    backgroundColor: COLORS.LIGHT_GRAY,
+    //backgroundColor: COLORS.LIGHT_GRAY,
     borderRadius: 8,
   
   },
   resultItem: {
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#ccc",
+    borderBottomColor: COLORS.LIGHT_GRAY,
   },
 });
