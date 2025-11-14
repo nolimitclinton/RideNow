@@ -22,7 +22,7 @@ import { COLORS } from "../constants/colors";
 import "react-native-get-random-values"; // ✅ prevents UUID crash
 import LongButton from "../components/buttons/LongButton";
 
-const GOOGLE_API_KEY = "AIzaSyC3B1BNTq8re47QL2ltM5zdZYujKIX4tKs"; // 🔑 replace with your API Key
+const GOOGLE_API_KEY = process.env.GOOGLE_MAPS_API;
 
 export default function HomeScreen() {
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
