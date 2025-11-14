@@ -13,15 +13,17 @@ type BottomPanelProps = {
 const BottomPanel = forwardRef<BottomPanelHandle, BottomPanelProps>(({ children }, ref) => {
   const bottomSheetRef = useRef<BottomSheet>(null);
 
-  const snapPoints = useMemo(() => ['25%',  '70%'], []);
+  const snapPoints = useMemo(() => ['25%', '50','75%'], []); 
 
   // Handle sheet changes
   const handleSheetChanges = useCallback((index: number) => {
-    console.log('BottomSheet index changed:', index);
-    if (index < 2) {
-      Keyboard.dismiss(); // dismiss keyboard if not fully expanded
-    }
-  }, []);
+ 
+  console.log(`BottomSheet index changed: ${index} → height: ${snapPoints[index]}`);
+
+  if (index < 2) {
+    Keyboard.dismiss(); // dismiss keyboard if not fully expanded
+  }
+}, []);
 
   // Expose snapToIndex method
   useImperativeHandle(ref, () => ({
