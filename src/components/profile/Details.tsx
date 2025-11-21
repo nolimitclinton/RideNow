@@ -1,39 +1,49 @@
-import { StyleSheet, Text, View } from "react-native";
 import React from "react";
+import { StyleSheet, Text, View } from "react-native";
+import { Mail, Phone, Globe } from "lucide-react-native";
 import { COLORS } from "../../constants/colors";
 import Button from "../ui/Button";
-import { Globe, Mail, Phone } from "lucide-react-native";
+import { logOut } from "../../services/auth";
+import type { User } from "firebase/auth";
 
-const profileOptions = [
-  {
-    email: "nate@email.com",
-    number: "081123232323",
-  },
-];
+type Props = {
+  user?: User | null;
+};
 
-const Details = () => {
+const Details: React.FC<Props> = ({ user }) => {
+  const name = user?.displayName ?? "No name";
+  const email = user?.email ?? "No email";
+  const phone = user?.phoneNumber ?? "No phone";
+
   return (
     <View>
-      <Text style={styles.name}>Nate Samson</Text>
+      <Text style={styles.name}>{name}</Text>
+
       <View style={{ gap: 20, marginTop: 20 }}>
         <View style={styles.optionContainer}>
           <Mail color={COLORS.GRAY} />
-          <Text style={styles.text}>natesamex12@gmail.com</Text>
+          <Text style={styles.text}>{email}</Text>
         </View>
+
         <View style={styles.optionContainer}>
           <Phone color={COLORS.GRAY} />
-          <Text style={styles.text}>08107022222</Text>
+          <Text style={styles.text}>{phone}</Text>
         </View>
+
         <View style={styles.optionContainer}>
           <Globe color={COLORS.GRAY} />
           <View>
             <Text style={styles.text}>Language</Text>
-            <Text style={styles.subtext}>English.Us</Text>
+            <Text style={styles.subtext}>English (US)</Text>
           </View>
         </View>
 
         <View>
-          <Button variant="outline-green" title="Logout" />
+          <Button
+            variant="outline-green"
+            title="Logout"
+            onPress={logOut}   
+          />
         </View>
       </View>
     </View>
@@ -46,7 +56,7 @@ const styles = StyleSheet.create({
   name: {
     color: COLORS.DARK_GRAY,
     fontSize: 32,
-    fontWeight: 500,
+    fontWeight: "600",
     textAlign: "center",
     marginTop: 20,
   },
@@ -60,6 +70,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 16,
   },
-  text: { color: COLORS.DARK_GRAY, fontWeight: 400, fontSize: 16 },
-  subtext: { color: COLORS.GRAY, fontWeight: 400, fontSize: 12 },
+  text: { color: COLORS.DARK_GRAY, fontSize: 16 },
+  subtext: { color: COLORS.GRAY, fontSize: 12 },
 });
