@@ -9,7 +9,7 @@ interface HeaderProp {
   isBackPresent?: boolean;
 }
 
-const Header = ({ title, isBackPresent = true }: HeaderProp) => {
+const Header = ({ title, isBackPresent = false }: HeaderProp) => {
   const navigate = useNavigation();
 
   return (

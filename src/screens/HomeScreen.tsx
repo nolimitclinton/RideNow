@@ -9,7 +9,8 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   ScrollView,
-  Animated
+  Animated,
+  DeviceEventEmitter
 } from "react-native";
 import MapView, { PROVIDER_GOOGLE, Marker, Polyline } from "react-native-maps";
 import * as Location from "expo-location";
@@ -21,8 +22,10 @@ import SmallButton from "../components/buttons/SmallButton";
 import { COLORS } from "../constants/colors";
 import "react-native-get-random-values"; // ✅ prevents UUID crash
 import LongButton from "../components/buttons/LongButton";
+import { db } from "../services/firebase";
+import { collection, addDoc } from "firebase/firestore";
 
-const GOOGLE_API_KEY = process.env.GOOGLE_MAPS_API;
+const GOOGLE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_API_KEY;
 
 export default function HomeScreen() {
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -36,6 +39,7 @@ export default function HomeScreen() {
   const [isSearchingDriver, setIsSearchingDriver] = useState(false);
   const [driverLocation, setDriverLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [isDriverMoving, setIsDriverMoving] = useState(false);
+  const [rideCompleted, setRideCompleted] = useState(false);
 
   const mapRef = useRef<MapView | null>(null);
 
@@ -62,12 +66,50 @@ export default function HomeScreen() {
         }
         // Reached destination
         setIsDriverMoving(false);
+        setRideCompleted(true);
         Alert.alert("Arrived!", "I don reach!");
+        // Save completed drive to Firestore
+        
+        try {
+          const driverNames = ["John Doe", "Jane Smith", "Mike Johnson", "Sarah Wilson", "David Brown"];
+          const carNames = ["Toyota Corolla", "Honda Civic", "Ford Fiesta", "Chevrolet Spark", "Hyundai Accent"];
+          const randomDriver = driverNames[Math.floor(Math.random() * driverNames.length)];
+          const randomCar = carNames[Math.floor(Math.random() * carNames.length)];
+
+          await addDoc(collection(db, 'completed_drives'), {
+            origin: location,
+            originName: locationName || "Unknown Origin",
+            destination: destinationMarker,
+            destinationName: destinationQuery || "Unknown Destination",
+            driverName: randomDriver,
+            carName: randomCar,
+            completedAt: new Date(),
+          });
+          console.log("Drive saved to Firestore");
+          // Emit event to refresh history
+          DeviceEventEmitter.emit('driveCompleted');
+        } catch (error) {
+          console.error("Error saving drive:", error);
+        }
       };
       
       animateDriver();
     }
   };
+
+  const resetRide = () => {
+    setRideCompleted(false);
+    setDestinationMarker(null);
+    setDestinationQuery("");
+    setDestinationResults([]);
+    setRouteCoords([]);
+    setDriverLocation(null);
+    setSearchQuery("");
+    setSearchResults([]);
+    setActiveInput(null);
+    bottomSheetRef.current?.snapToIndex(0);
+  };
+
   const bottomSheetRef = useRef<BottomPanelHandle>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const debounceTimerRefDest = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -127,7 +169,7 @@ export default function HomeScreen() {
 
   const handleDestinationFocus = () => {
     setActiveInput("destination");
-    bottomSheetRef.current?.snapToIndex(2);
+    bottomSheetRef.current?.snapToIndex(0 ) ;
   };
 
   const handleDestinationChange = (text: string) => {
@@ -311,91 +353,100 @@ export default function HomeScreen() {
               <Text style={styles.panelTitle}>Search Location</Text>
 
               <View style={styles.searchContainer}>
-                <SearchBar
-                  placeholder={locationName || "Current Location"}
-                  value={searchQuery}
-                  onChangeText={handleSearchChange}
-                  onFocus={() => {
-                    setActiveInput("origin");
-                    handleSearchFocus();
-                  }}
-                />
+                {!isDriverMoving && !rideCompleted && (
+                  <>
+                    <SearchBar
+                      placeholder={locationName || "Current Location"}
+                      value={searchQuery}
+                      onChangeText={handleSearchChange}
+                      onFocus={() => {
+                        setActiveInput("origin");
+                        handleSearchFocus();
+                      }}
+                    />
 
-                <SearchBar
-                  placeholder="Destination"
-                  value={destinationQuery}
-                  onChangeText={handleDestinationChange}
-                  onFocus={handleDestinationFocus}
-                />
+                    <SearchBar
+                      placeholder="Destination"
+                      value={destinationQuery}
+                      onChangeText={handleDestinationChange}
+                      onFocus={handleDestinationFocus}
+                    />
 
-                <ScrollView style={{ maxHeight: 250 }}>
-                  { (activeInput === "destination" ? destinationResults : searchResults).length === 0 ? (
-                   null
-                  ) : (
-                    (activeInput === "destination" ? destinationResults : searchResults).map((item) => (
-                      <TouchableOpacity
-                        key={item.place_id}
-                        onPress={async () => {
-                          const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${item.place_id}&key=${GOOGLE_API_KEY}`;
-                          const detailsRes = await fetch(detailsUrl);
-                          const detailsData = await detailsRes.json();
+                    <ScrollView style={{ maxHeight: 250 }}>
+                      { (activeInput === "destination" ? destinationResults : searchResults).length === 0 ? (
+                       null
+                      ) : (
+                        (activeInput === "destination" ? destinationResults : searchResults).map((item) => (
+                          <TouchableOpacity
+                            key={item.place_id}
+                            onPress={async () => {
+                              const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${item.place_id}&key=${GOOGLE_API_KEY}`;
+                              const detailsRes = await fetch(detailsUrl);
+                              const detailsData = await detailsRes.json();
 
-                          if (detailsData.status === "OK") {
-                            const coords = detailsData.result.geometry.location;
-                            // If destination input is active, add a marker there and center map without overwriting user location
-                            if (activeInput === "destination") {
-                              setDestinationMarker({ latitude: coords.lat, longitude: coords.lng });
-                              mapRef.current?.animateCamera({
-                                center: { latitude: coords.lat, longitude: coords.lng },
-                                zoom: 15,
-                              });
-                              bottomSheetRef.current?.snapToIndex(0); // collapse sheet
-                              setDestinationResults([]);
-                              setDestinationQuery(item.description);
-                              // compute route from current location to destination
-                              if (location) {
-                                const route = await getRouteFromOSRM(
-                                  { latitude: location.latitude, longitude: location.longitude },
-                                  { latitude: coords.lat, longitude: coords.lng }
-                                );
-                                setRouteCoords(route);
-                              } else {
-                                setRouteCoords([]);
+                              if (detailsData.status === "OK") {
+                                const coords = detailsData.result.geometry.location;
+                                // If destination input is active, add a marker there and center map without overwriting user location
+                                if (activeInput === "destination") {
+                                  setDestinationMarker({ latitude: coords.lat, longitude: coords.lng });
+                                  mapRef.current?.animateCamera({
+                                    center: { latitude: coords.lat, longitude: coords.lng },
+                                    zoom: 15,
+                                  });
+                                  bottomSheetRef.current?.snapToIndex(0); // collapse sheet
+                                  setDestinationResults([]);
+                                  setDestinationQuery(item.description);
+                                  // compute route from current location to destination
+                                  if (location) {
+                                    const route = await getRouteFromOSRM(
+                                      { latitude: location.latitude, longitude: location.longitude },
+                                      { latitude: coords.lat, longitude: coords.lng }
+                                    );
+                                    setRouteCoords(route);
+                                  } else {
+                                    setRouteCoords([]);
+                                  }
+                                } else {
+                                  // Origin selection: update main location and center map
+                                  setLocation({
+                                    latitude: coords.lat,
+                                    longitude: coords.lng,
+                                  });
+                                  mapRef.current?.animateCamera({
+                                    center: { latitude: coords.lat, longitude: coords.lng },
+                                    zoom: 15,
+                                  });
+                                  bottomSheetRef.current?.snapToIndex(0); // collapse sheet
+                                  setSearchResults([]);
+                                  setSearchQuery(item.description);
+                                  // clear any existing route when origin is manually set
+                                  setRouteCoords([]);
+                                }
                               }
-                            } else {
-                              // Origin selection: update main location and center map
-                              setLocation({
-                                latitude: coords.lat,
-                                longitude: coords.lng,
-                              });
-                              mapRef.current?.animateCamera({
-                                center: { latitude: coords.lat, longitude: coords.lng },
-                                zoom: 15,
-                              });
-                              bottomSheetRef.current?.snapToIndex(0); // collapse sheet
-                              setSearchResults([]);
-                              setSearchQuery(item.description);
-                              // clear any existing route when origin is manually set
-                              setRouteCoords([]);
-                            }
-                          }
-                        }}
-                        style={styles.resultItem}
-                      >
-                        <Text>{item.description}</Text>
-                      </TouchableOpacity>
-                    ))
-                  )}
-                </ScrollView>
-                {destinationMarker ? (
+                            }}
+                            style={styles.resultItem}
+                          >
+                            <Text>{item.description}</Text>
+                          </TouchableOpacity>
+                        ))
+                      )}
+                    </ScrollView>
+                  </>
+                )}
+                {destinationMarker && !rideCompleted ? (
                   <>
                     {handleSearchFocus(2)}
-                    <LongButton 
+                    <LongButton
                       text={isSearchingDriver ? "Finding Driver..." : (isDriverMoving ? "Driving to destination" : "Find Driver")}
                       onPress={findDriver}
                     />
                   </>
-                ): null}
+                ) : rideCompleted ? (
+                  <LongButton
+                    text="Order Another Ride"
+                    onPress={resetRide}
+                  />
+                ) : null}
               </View>
             </View>
           </BottomPanel>

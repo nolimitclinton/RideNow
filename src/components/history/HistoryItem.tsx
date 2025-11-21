@@ -16,9 +16,14 @@ const HistoryItem = ({ name, carName, date, time }: HistoryItemProp) => {
         <Text style={{ fontWeight: 500, color: COLORS.DARK_GRAY }}>{name}</Text>
         <Text style={{ color: COLORS.GRAY }}>{carName}</Text>
       </View>
-      <Text style={{ fontWeight: 400, color: COLORS.GRAY }}>
-        {date} at {time}
-      </Text>
+      <View style={{ alignItems: 'flex-end' }}>
+        <Text style={{ fontWeight: 400, color: COLORS.GRAY }}>
+          {date}
+        </Text>
+        <Text style={{ fontWeight: 400, color: COLORS.GRAY }}>
+          {time}
+        </Text>
+      </View>
     </View>
   );
 };

@@ -1,8 +1,9 @@
-import { FlatList, StyleSheet, View } from "react-native";
-import React, { useState } from "react";
-import { dummyhistory } from "../../constants/dummyHistory";
+import { FlatList, StyleSheet, View, Text } from "react-native";
+import React, { useState, useEffect } from "react";
+import { DeviceEventEmitter } from "react-native";
+import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import { db } from "../../services/firebase";
 import HistoryItem from "./HistoryItem";
-import FilterTab from "./FiterTab";
 
 interface ItemProps {
   time: string;
@@ -13,11 +14,48 @@ interface ItemProps {
 }
 
 const HistoryRender = () => {
-  const [activeFilter, setActiveFilter] = useState("upcoming");
+  const [data, setData] = useState<ItemProps[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredData = dummyhistory.filter(
-    (item) => item.category === activeFilter
-  );
+  useEffect(() => {
+  const fetchCompletedDrives = async () => {
+    try {
+      const q = query(collection(db, 'completed_drives'), orderBy('completedAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      const drives: ItemProps[] = [];
+      querySnapshot.forEach((doc) => {
+        const driveData = doc.data();
+        const completedAt = driveData.completedAt.toDate();
+        drives.push({
+          time: completedAt.toLocaleTimeString(),
+          date: completedAt.toLocaleDateString(),
+          car: driveData.carName,
+          name: driveData.driverName,
+          category: "Completed",
+        });
+      });
+      setData(drives);
+    } catch (error) {
+      console.error("Error fetching completed drives:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initial fetch
+  fetchCompletedDrives();
+
+  // Listen for new drives
+  const listener = DeviceEventEmitter.addListener('driveCompleted', () => {
+    fetchCompletedDrives(); // refetch when a drive completes
+  });
+
+  // Cleanup on unmount
+  return () => {
+    listener.remove();
+  };
+}, []);
+
 
   const renderItem = ({ item }: { item: ItemProps }) => (
     <HistoryItem
@@ -28,12 +66,20 @@ const HistoryRender = () => {
     />
   );
 
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text>Loading...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1 }}>
-      <FilterTab onFilterChange={(filter) => setActiveFilter(filter)} />
+      <Text>Completed</Text>
       <FlatList
         showsVerticalScrollIndicator={false}
-        data={filteredData}
+        data={data}
         renderItem={renderItem}
         keyExtractor={(_, index) => index.toString()}
       />
