@@ -14,7 +14,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={[{ padding: 16, flex: 1 }, { backgroundColor: theme.colors.background }]}>
       <ScrollView showsVerticalScrollIndicator={false}>
-      <Header title="Profile" />
+      {/* <Header title="Profile" /> */}
       <Avatar/>
       <Details/>
       </ScrollView>
