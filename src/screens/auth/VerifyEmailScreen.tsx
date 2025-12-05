@@ -11,16 +11,19 @@ export default function VerifyEmailScreen() {
   const [busy, setBusy] = useState(false);
 
   async function onResend() {
-    setBusy(true);
-    try {
-      await resendVerificationEmail();
-      Alert.alert('Sent', 'We re-sent the verification email and dev code.');
-    } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Could not resend.');
-    } finally {
-      setBusy(false);
-    }
+  setBusy(true);
+  try {
+    const code = await resendVerificationEmail();
+    Alert.alert(
+      'Sent',
+      `We re-sent the verification email.\n\nDEV code: ${code}`
+    );
+  } catch (e: any) {
+    Alert.alert('Error', e?.message || 'Could not resend.');
+  } finally {
+    setBusy(false);
   }
+}
 
   async function onSubmitCode() {
     setBusy(true);

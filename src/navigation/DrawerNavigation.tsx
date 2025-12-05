@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet, ScrollView, Alert } from 'react-native';
 import { createDrawerNavigator, DrawerContentScrollView } from '@react-navigation/drawer';
 import { useNavigation } from '@react-navigation/native';
@@ -6,25 +6,41 @@ import TabNavigator from './TabNavigator';
 import LongButton from '../components/buttons/LongButton';
 import SmallButton from '../components/buttons/SmallButton';
 import { COLORS } from '../constants/colors';
-import { auth } from '../services/firebase';
+import { auth, db } from '../services/firebase';
 import { signOut } from 'firebase/auth';
+import { useAuth } from '../store/AuthProvider';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 type DrawerParamList = {
   MainTabs: undefined;
-  History: undefined; 
+  History: undefined;
 };
 
 const Drawer = createDrawerNavigator<DrawerParamList>();
 
 function CustomDrawerContent(props: any) {
   const navigation = useNavigation<any>();
-  const user = auth.currentUser;
+  const { user } = useAuth();
+  const [firestorePhotoURL, setFirestorePhotoURL] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const ref = doc(db, 'users', user.uid);
+    const unsub = onSnapshot(ref, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data() as any;
+        setFirestorePhotoURL(data.photoURL ?? null);
+      }
+    });
+
+    return unsub;
+  }, [user]);
 
   const displayName =
-    user?.displayName ||
-    (user?.email ? user.email.split('@')[0] : 'Rider');
+    user?.displayName || (user?.email ? user.email.split('@')[0] : 'Rider');
   const email = user?.email || '—';
-  const photoURL = user?.photoURL || 'https://i.pravatar.cc/100?img=68';
+  const effectivePhotoURL = firestorePhotoURL || user?.photoURL || null;
 
   async function onLogout() {
     try {
@@ -52,7 +68,16 @@ function CustomDrawerContent(props: any) {
 
         {/* Profile */}
         <View style={styles.profileContainer}>
-          <Image source={{ uri: photoURL }} style={styles.avatar} />
+          {effectivePhotoURL ? (
+            <Image source={{ uri: effectivePhotoURL }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarFallback]}>
+              <Text style={styles.initials}>
+                {displayName.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+          )}
+
           <Text style={styles.name}>{displayName}</Text>
           <Text style={styles.email}>{email}</Text>
         </View>
@@ -91,7 +116,7 @@ function CustomDrawerContent(props: any) {
             text="Logout"
             icon="LogOut"
             onPress={onLogout}
-            style={{ ...styles.loginButton, backgroundColor: COLORS.DARK_GRAY }}
+            style={{ ...styles.loginButton, backgroundColor: COLORS.GREEN }}
           />
         </ScrollView>
       </DrawerContentScrollView>
@@ -103,9 +128,7 @@ export default function AppDrawer() {
   return (
     <Drawer.Navigator
       screenOptions={{
-        
         headerShown: false,
-        
         drawerStyle: {
           width: '80%',
           borderTopRightRadius: 20,
@@ -115,9 +138,7 @@ export default function AppDrawer() {
       drawerContent={(props) => <CustomDrawerContent {...props} />}
     >
       <Drawer.Screen name="MainTabs" component={TabNavigator} />
-      {/* If you have a dedicated history screen route (not just tab), add it here:
-      <Drawer.Screen name="History" component={HistoryScreen} />
-      */}
+      {/* <Drawer.Screen name="History" component={HistoryScreen} /> */}
     </Drawer.Navigator>
   );
 }
@@ -133,8 +154,23 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.WHITE,
   },
   avatar: { width: 80, height: 80, borderRadius: 40, marginBottom: 10 },
+  avatarFallback: {
+    backgroundColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  initials: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: COLORS.DARK_GRAY,
+  },
   name: { fontSize: 22, fontWeight: 'bold', color: COLORS.DARK_GRAY, marginTop: 5 },
   email: { fontSize: 16, color: 'gray' },
-  menuButton: { marginBottom: 12, justifyContent: 'flex-start', backgroundColor: 'transparent', paddingLeft: 5 },
+  menuButton: {
+    marginBottom: 12,
+    justifyContent: 'flex-start',
+    backgroundColor: 'transparent',
+    paddingLeft: 5,
+  },
   loginButton: { marginBottom: 12, justifyContent: 'flex-start' },
 });

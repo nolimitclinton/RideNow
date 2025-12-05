@@ -1,4 +1,4 @@
-import { auth, db } from './firebase';
+import { auth, db, storage } from './firebase';
 import {
   createUserWithEmailAndPassword,
   sendEmailVerification,
@@ -9,50 +9,116 @@ import {
   User,
 } from 'firebase/auth';
 import {
-  doc, setDoc, getDoc, deleteDoc, serverTimestamp,
+  doc,
+  setDoc,
+  getDoc,
+  updateDoc,
+  deleteDoc,
+  serverTimestamp,
 } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-let notify: ((code: string) => Promise<void>) | null = null;
-export function setVerificationNotifier(fn: (code: string) => Promise<void>) {
-  notify = fn;
+export type SignUpPayload = {
+  name: string;
+  email: string;
+  password: string;
+  country?: string;
+  phone?: string;
+  gender?: 'Male' | 'Female' | 'Other' | '';
+  profileImageUri?: string | null;
+};
+
+// --- helpers ---
+
+function makeCode(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString(); // 6 digits
 }
 
-const makeCode = () => Math.floor(100000 + Math.random() * 900000).toString();
-
-async function createVerificationCode(uid: string) {
+async function createVerificationCode(uid: string): Promise<string> {
   const code = makeCode();
-  await setDoc(doc(db, 'verificationCodes', uid), { code, createdAt: serverTimestamp() });
+  await setDoc(doc(db, 'verificationCodes', uid), {
+    code,
+    createdAt: serverTimestamp(),
+  });
   console.log('[DEV] Verification code for', uid, '→', code);
-  if (notify) await notify(code); 
   return code;
 }
 
-async function isVerified(user: User) {
+async function isVerified(user: User): Promise<boolean> {
   await reload(user);
   if (user.emailVerified) return true;
+
   const snap = await getDoc(doc(db, 'users', user.uid));
-  return snap.exists() ? !!snap.data()?.verified : false;
+  const v = snap.exists() ? !!snap.data()?.verified : false;
+  return v;
 }
 
-export async function signUpEmail(name: string, email: string, password: string) {
+// Upload profile image from local URI to Storage
+async function uploadProfileImage(uid: string, uri: string): Promise<string> {
+  const response = await fetch(uri);
+  const blob = await response.blob();
+
+  const fileRef = ref(storage, `users/${uid}/avatar.jpg`);
+  await uploadBytes(fileRef, blob);
+  const url = await getDownloadURL(fileRef);
+  return url;
+}
+
+// --- public API ---
+
+export async function signUpEmail(payload: SignUpPayload) {
+  const {
+    name,
+    email,
+    password,
+    country,
+    phone,
+    gender,
+    profileImageUri,
+  } = payload;
+
   const cred = await createUserWithEmailAndPassword(auth, email, password);
-  if (name) await updateProfile(cred.user, { displayName: name });
+
+  let photoURL: string | null = cred.user.photoURL ?? null;
+
+  // First set displayName, then handle avatar upload
+  if (name) {
+    await updateProfile(cred.user, { displayName: name });
+  }
+
+  if (profileImageUri) {
+    try {
+      const uploadedUrl = await uploadProfileImage(cred.user.uid, profileImageUri);
+      photoURL = uploadedUrl;
+      await updateProfile(cred.user, { photoURL });
+    } catch (e) {
+      console.warn('uploadProfileImage failed:', e);
+    }
+  }
 
   await setDoc(
     doc(db, 'users', cred.user.uid),
     {
       name: name || '',
       email: cred.user.email,
-      photoURL: cred.user.photoURL ?? null,
+      photoURL,
       provider: 'password',
+      country: country || null,
+      phone: phone || null,
+      gender: gender || null,
       verified: false,
       createdAt: serverTimestamp(),
     },
     { merge: true }
   );
 
-  try { await sendEmailVerification(cred.user); } catch {}
+  try {
+    await sendEmailVerification(cred.user);
+  } catch (e) {
+    console.warn('sendEmailVerification failed (dev ok):', e);
+  }
 
+  // Dev-friendly code flow (for fake emails / simulator)
   await createVerificationCode(cred.user.uid);
 
   return cred.user;
@@ -60,7 +126,9 @@ export async function signUpEmail(name: string, email: string, password: string)
 
 export async function signInEmail(email: string, password: string) {
   const cred = await signInWithEmailAndPassword(auth, email, password);
-  if (!(await isVerified(cred.user))) {
+
+  const ok = await isVerified(cred.user);
+  if (!ok) {
     await signOut(auth);
     const err: any = new Error('Account not verified');
     err.code = 'auth/account-not-verified';
@@ -69,10 +137,19 @@ export async function signInEmail(email: string, password: string) {
   return cred.user;
 }
 
-export async function resendVerificationEmail() {
+/**
+ * Resends both the email and a dev 6-digit code.
+ * Returns the code so the UI can show it in an Alert on the simulator.
+ */
+export async function resendVerificationEmail(): Promise<string> {
   if (!auth.currentUser) throw new Error('Not signed in');
-  try { await sendEmailVerification(auth.currentUser); } catch {}
-  await createVerificationCode(auth.currentUser.uid); 
+  try {
+    await sendEmailVerification(auth.currentUser);
+  } catch (e) {
+    console.warn('sendEmailVerification failed:', e);
+  }
+  const code = await createVerificationCode(auth.currentUser.uid);
+  return code;
 }
 
 export async function verifyWithCode(inputCode: string) {
@@ -84,9 +161,11 @@ export async function verifyWithCode(inputCode: string) {
   if (!snap.exists()) throw new Error('No verification code found');
 
   const real = String(snap.data()?.code || '');
-  if (inputCode.trim() !== real) throw new Error('Invalid code');
+  if (inputCode.trim() !== real) {
+    throw new Error('Invalid code');
+  }
 
-  await setDoc(doc(db, 'users', user.uid), { verified: true }, { merge: true });
+  await updateDoc(doc(db, 'users', user.uid), { verified: true });
   await deleteDoc(ref);
   return true;
 }
@@ -97,4 +176,6 @@ export async function refreshCurrentUser() {
   return auth.currentUser;
 }
 
-export function logOut() { return signOut(auth); }
+export function logOut() {
+  return signOut(auth);
+}

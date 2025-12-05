@@ -8,8 +8,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  TouchableOpacity,
+  Modal,
   Image,
+  TouchableOpacity,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS } from '../../constants/colors';
@@ -20,6 +21,7 @@ import { makeRedirectUri } from 'expo-auth-session';
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { auth, db } from '../../services/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import * as ImagePicker from 'expo-image-picker';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -30,28 +32,32 @@ export default function SignupScreen() {
   const nav = useNavigation();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [phoneCode, setPhoneCode] = useState('+880');
+
+  const [country, setCountry] = useState('');
   const [phone, setPhone] = useState('');
+
   const [gender, setGender] = useState<'Male' | 'Female' | 'Other' | ''>('');
   const [password, setPassword] = useState('');
   const [secure, setSecure] = useState(true);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [agree, setAgree] = useState(true);
+  const [showGenderPicker, setShowGenderPicker] = useState(false);
+
+  const [profileImage, setProfileImage] = useState<string | null>(null);
 
   // Google auth setup
-  
-const redirectUri = makeRedirectUri();
+  const redirectUri = makeRedirectUri();
 
-const [request, response, promptAsync] = Google.useAuthRequest({
-  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID!,
-  iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID!,
-  androidClientId:process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ??
-  process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID!,
-  scopes: ['profile', 'email'],
-  redirectUri, 
-});
-//console.log(makeRedirectUri());
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID!,
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID!,
+    androidClientId:
+      process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ??
+      process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID!,
+    scopes: ['profile', 'email'],
+    redirectUri,
+  });
 
   useEffect(() => {
     if (response?.type === 'success') {
@@ -91,36 +97,81 @@ const [request, response, promptAsync] = Google.useAuthRequest({
     return okName && okEmail && okPass && agree && !loading;
   }, [name, email, password, agree, loading]);
 
-  async function onSubmit() {
-    if (!canSubmit) return;
-    setErr(null);
-    setLoading(true);
+   async function onSubmit() {
+  if (!canSubmit) return;
+  setErr(null);
+  setLoading(true);
+  try {
+    await signUpEmail({
+      name: name.trim(),
+      email: email.trim(),
+      password,
+      country: country.trim() || undefined,
+      phone: phone.trim() || undefined,
+      gender: gender || undefined,
+      profileImageUri: profileImage ?? undefined,
+    });
+  } catch (e: any) {
+    const msg = e?.code || e?.message || 'Sign up failed';
+    setErr(humanize(msg));
+  } finally {
+    setLoading(false);
+  }
+}
+  async function onGooglePress() {
+    await promptAsync({ useProxy: true } as any);
+  }
+
+  async function onPickImage() {
     try {
-      await signUpEmail(name.trim(), email.trim(), password);
-      (nav as any).navigate('VerifyEmail');
-    } catch (e: any) {
-      const msg = e?.code || e?.message || 'Sign up failed';
-      setErr(humanize(msg));
-    } finally {
-      setLoading(false);
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        alert('Permission to access photos is required to upload a profile picture.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets?.length) {
+        setProfileImage(result.assets[0].uri);
+      }
+    } catch (e) {
+      console.log('Image picker error', e);
     }
   }
 
-  async function onGooglePress() {
-    await promptAsync({ useProxy: true }as any);
-  }
-
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        {/* Back
-        <TouchableOpacity onPress={() => nav.goBack()} style={styles.backBtn}>
-          <Text style={styles.backTxt}>Back</Text>
-        </TouchableOpacity> */}
-
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Sign up with your email or phone number</Text>
+        </View>
+
+        {/* Profile image picker */}
+        <View style={styles.avatarWrapper}>
+          <Pressable onPress={onPickImage} style={styles.avatarButton}>
+            {profileImage ? (
+              <Image source={{ uri: profileImage }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Text style={styles.avatarInitials}>
+                  {name.trim() ? name.trim().charAt(0).toUpperCase() : '?'}
+                </Text>
+              </View>
+            )}
+          </Pressable>
+          <Pressable onPress={onPickImage}>
+            <Text style={styles.changePhotoText}>Add profile photo</Text>
+          </Pressable>
         </View>
 
         {/* Error */}
@@ -132,6 +183,7 @@ const [request, response, promptAsync] = Google.useAuthRequest({
 
         {/* Form */}
         <View style={styles.form}>
+          {/* Name */}
           <TextInput
             value={name}
             onChangeText={(t) => {
@@ -144,6 +196,7 @@ const [request, response, promptAsync] = Google.useAuthRequest({
             returnKeyType="next"
           />
 
+          {/* Email */}
           <TextInput
             value={email}
             onChangeText={(t) => {
@@ -159,43 +212,37 @@ const [request, response, promptAsync] = Google.useAuthRequest({
             returnKeyType="next"
           />
 
-          {/* Phone row */}
-          <View style={styles.phoneRow}>
-            <Pressable style={styles.flagBtn}>
-              <Text style={styles.flagTxt}>🇧🇩</Text>
-            </Pressable>
-            <TextInput
-              value={phoneCode}
-              onChangeText={setPhoneCode}
-              style={[styles.input, styles.codeInput]}
-              keyboardType="phone-pad"
-            />
-            <TextInput
-              value={phone}
-              onChangeText={setPhone}
-              style={[styles.input, styles.phoneInput]}
-              placeholder="Your mobile number"
-              placeholderTextColor={COLORS.GRAY}
-              keyboardType="phone-pad"
-            />
-          </View>
+          {/* Country */}
+          <TextInput
+            value={country}
+            onChangeText={setCountry}
+            placeholder="Country"
+            placeholderTextColor={COLORS.GRAY}
+            style={styles.input}
+            returnKeyType="next"
+          />
 
-          {/* Gender selector */}
+          {/* Phone */}
+          <TextInput
+            value={phone}
+            onChangeText={setPhone}
+            style={styles.input}
+            placeholder="Phone number"
+            placeholderTextColor={COLORS.GRAY}
+            keyboardType="phone-pad"
+          />
+
+           {/* Gender dropdown */}
           <Pressable
             style={styles.select}
-            onPress={() => {
-              setGender(
-                gender === ''
-                  ? 'Male'
-                  : gender === 'Male'
-                  ? 'Female'
-                  : gender === 'Female'
-                  ? 'Other'
-                  : ''
-              );
-            }}
+            onPress={() => setShowGenderPicker(true)}
           >
-            <Text style={[styles.selectTxt, gender ? { color: COLORS.DARK_GRAY } : { color: COLORS.GRAY }]}>
+            <Text
+              style={[
+                styles.selectTxt,
+                gender ? { color: COLORS.DARK_GRAY } : { color: COLORS.GRAY },
+              ]}
+            >
               {gender || 'Gender'}
             </Text>
             <Text style={{ color: COLORS.GRAY }}>▾</Text>
@@ -213,7 +260,11 @@ const [request, response, promptAsync] = Google.useAuthRequest({
               placeholderTextColor={COLORS.GRAY}
               secureTextEntry={secure}
               autoCapitalize="none"
-              style={[styles.input, styles.passwordInput, password && password.length < 6 && styles.inputInvalid]}
+              style={[
+                styles.input,
+                styles.passwordInput,
+                password && password.length < 6 && styles.inputInvalid,
+              ]}
               returnKeyType="done"
               onSubmitEditing={onSubmit}
             />
@@ -224,7 +275,9 @@ const [request, response, promptAsync] = Google.useAuthRequest({
 
           {/* Terms */}
           <Pressable onPress={() => setAgree((a) => !a)} style={styles.termsRow}>
-            <Text style={[styles.checkbox, agree && styles.checkboxOn]}>{agree ? '✓' : ''}</Text>
+            <Text style={[styles.checkbox, agree && styles.checkboxOn]}>
+              {agree ? '✓' : ''}
+            </Text>
             <Text style={styles.termsTxt}>
               By signing up, you agree to the <Text style={styles.link}>Terms of service</Text> and{' '}
               <Text style={styles.link}>Privacy policy</Text>.
@@ -272,6 +325,36 @@ const [request, response, promptAsync] = Google.useAuthRequest({
             </Pressable>
           </View>
         </View>
+        {/* Gender picker modal */}
+        <Modal
+          visible={showGenderPicker}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowGenderPicker(false)}
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalCard}>
+              {(['Male', 'Female', 'Other'] as const).map((g) => (
+                <TouchableOpacity
+                  key={g}
+                  style={styles.modalItem}
+                  onPress={() => {
+                    setGender(g);
+                    setShowGenderPicker(false);
+                  }}
+                >
+                  <Text style={{ color: COLORS.DARK_GRAY, fontSize: 16 }}>{g}</Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                style={[styles.modalItem, { borderTopWidth: 1, borderColor: BORDER }]}
+                onPress={() => setShowGenderPicker(false)}
+              >
+                <Text style={{ color: COLORS.GRAY }}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -285,12 +368,62 @@ function humanize(codeOrMsg: string) {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, backgroundColor: COLORS.WHITE, paddingHorizontal: 24, paddingTop: 84, paddingBottom: 24 },
-  
-  header: { marginBottom: 8 },
+  container: {
+    flexGrow: 1,
+    backgroundColor: COLORS.WHITE,
+    paddingHorizontal: 24,
+    paddingTop: 84,
+    paddingBottom: 24,
+  },
+
+  header: { marginBottom: 16 },
   title: { color: COLORS.DARK_GRAY, fontSize: 22, lineHeight: 28, fontWeight: '700' },
 
-  errorBox: { borderWidth: 1, borderColor: '#FCA5A5', backgroundColor: '#FEF2F2', padding: 12, borderRadius: 12, marginBottom: 8 },
+  avatarWrapper: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  avatarButton: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: COLORS.LIGHT_GREEN,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F3F4F6',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarPlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitials: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: COLORS.DARK_GRAY,
+  },
+  changePhotoText: {
+    marginTop: 8,
+    color: COLORS.GREEN,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+
+  errorBox: {
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    backgroundColor: '#FEF2F2',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
   errorText: { color: '#991B1B', fontSize: 13 },
 
   form: { gap: 12 },
@@ -307,20 +440,6 @@ const styles = StyleSheet.create({
   },
   inputInvalid: { borderColor: '#FCA5A5' },
 
-  phoneRow: { flexDirection: 'row', gap: 8 },
-  flagBtn: {
-    width: 52,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: BORDER,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff',
-  },
-  flagTxt: { fontSize: 18 },
-  codeInput: { flexBasis: 90, textAlign: 'center' },
-  phoneInput: { flex: 1 },
-
   select: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -336,7 +455,14 @@ const styles = StyleSheet.create({
 
   passwordRow: { position: 'relative' },
   passwordInput: { paddingRight: 64 },
-  eyeBtn: { position: 'absolute', right: 8, top: 8, bottom: 8, paddingHorizontal: 10, justifyContent: 'center' },
+  eyeBtn: {
+    position: 'absolute',
+    right: 8,
+    top: 8,
+    bottom: 8,
+    paddingHorizontal: 10,
+    justifyContent: 'center',
+  },
   eyeText: { color: COLORS.GREEN, fontWeight: '600' },
 
   termsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 6 },
@@ -374,4 +500,21 @@ const styles = StyleSheet.create({
   switchRow: { marginTop: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   switchText: { color: COLORS.GRAY, fontSize: 14 },
   switchLink: { color: COLORS.GREEN, fontSize: 14, fontWeight: '700' },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCard: {
+    width: '80%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    paddingVertical: 8,
+    overflow: 'hidden',
+  },
+  modalItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
 });
