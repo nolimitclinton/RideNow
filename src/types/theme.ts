@@ -11,6 +11,7 @@ export interface Theme {
     success: string;
     error: string;
     warning: string;
+    card: string;
   };
 }
 

@@ -8,7 +8,7 @@ import {
   Pressable,
   Modal,
   TouchableOpacity,
-  Animated,
+  ScrollView,
 } from 'react-native';
 import { Mail, Phone, Globe, User as UserIcon, Edit3, Check, X } from 'lucide-react-native';
 import { useAuth } from '../../store/AuthProvider';
@@ -40,7 +40,7 @@ const Details = () => {
   const [genderInput, setGenderInput] = useState('');
   const [showGenderPicker, setShowGenderPicker] = useState(false);
 
-  // ► Fetch user data
+  // Fetch user data
   useEffect(() => {
     if (!user) return;
 
@@ -69,8 +69,8 @@ const Details = () => {
 
     return unsub;
   }, [user]);
-  console.log(phoneInput);
-  // ► Save
+
+  // Save function
   async function onSave() {
     if (!user) return;
 
@@ -116,8 +116,14 @@ const Details = () => {
   }
 
   return (
-    <View style={{ flex: 1, paddingHorizontal: 18, paddingTop: 20 }}>
-
+    <View
+      style={{
+        flex: 1,
+        paddingHorizontal: 18,
+        paddingTop: 20,
+        paddingBottom: editing ? 140 : 40, // space for bottom bar
+      }}
+    >
       {/* Header */}
       <View style={styles(theme).headerRow}>
         <View style={{ flex: 1 }}>
@@ -126,35 +132,29 @@ const Details = () => {
         </View>
 
         {!editing && (
-          <Pressable
-            onPress={() => setEditing(true)}
-            style={styles(theme).editBtn}
-          >
+          <Pressable onPress={() => setEditing(true)} style={styles(theme).editBtn}>
             <Edit3 size={20} color={theme.colors.primary} strokeWidth={2.4} />
           </Pressable>
         )}
       </View>
 
-      {/* Profile Fields */}
-      <View style={{ gap: 14, marginTop: 16 }}>
-
-        {/* NAME - Editable when editing */}
+      {/* Form Fields */}
+      <ScrollView
+        style={{ marginTop: 16 }}
+        contentContainerStyle={{ gap: 14, paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* NAME */}
         {editing && (
-          <View style={styles(theme).rowBox}>
-            <View style={styles(theme).iconBox}>
-              <UserIcon size={20} color={theme.colors.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles(theme).label}>Name</Text>
-              <TextInput
-                value={nameInput}
-                onChangeText={setNameInput}
-                placeholder="Enter your name"
-                placeholderTextColor={theme.colors.textSecondary}
-                style={styles(theme).input}
-              />
-            </View>
-          </View>
+          <ProfileRow
+            icon={<UserIcon size={20} color={theme.colors.primary} />}
+            label="Name"
+            editable
+            inputValue={nameInput}
+            onChangeText={setNameInput}
+            placeholder="Enter your name"
+            theme={theme}
+          />
         )}
 
         {/* EMAIL */}
@@ -191,18 +191,14 @@ const Details = () => {
 
         {/* GENDER */}
         <View style={styles(theme).rowBox}>
-          <View style={styles(theme).iconBox}>{<UserIcon size={20} color={theme.colors.primary} />}</View>
+          <View style={styles(theme).iconBox}>
+            <UserIcon size={20} color={theme.colors.primary} />
+          </View>
           <View style={{ flex: 1 }}>
             <Text style={styles(theme).label}>Gender</Text>
-
             {editing ? (
-              <Pressable
-                onPress={() => setShowGenderPicker(true)}
-                style={styles(theme).selectBox}
-              >
-                <Text style={styles(theme).value}>
-                  {genderInput || 'Select Gender'}
-                </Text>
+              <Pressable onPress={() => setShowGenderPicker(true)} style={styles(theme).selectBox}>
+                <Text style={styles(theme).value}>{genderInput || 'Select Gender'}</Text>
                 <Text style={{ color: theme.colors.textSecondary }}>▼</Text>
               </Pressable>
             ) : (
@@ -210,17 +206,13 @@ const Details = () => {
             )}
           </View>
         </View>
+      </ScrollView>
 
-      </View>
-
-      
-
-      {/* GENDER PICKER – Uber bottom sheet */}
+      {/* GENDER PICKER */}
       <Modal visible={showGenderPicker} transparent animationType="slide">
         <View style={styles(theme).modalOverlay}>
           <View style={styles(theme).sheet}>
             <Text style={styles(theme).sheetTitle}>Select Gender</Text>
-
             {['Male', 'Female', 'Other'].map((g) => (
               <TouchableOpacity
                 key={g}
@@ -233,124 +225,70 @@ const Details = () => {
                 <Text style={styles(theme).sheetItemText}>{g}</Text>
               </TouchableOpacity>
             ))}
-
-            <TouchableOpacity
-              style={styles(theme).sheetCancel}
-              onPress={() => setShowGenderPicker(false)}
-            >
+            <TouchableOpacity style={styles(theme).sheetCancel} onPress={() => setShowGenderPicker(false)}>
               <Text style={styles(theme).sheetCancelText}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-              {/* SAVE / CANCEL (Uber-like bottom bar) */}
+      {/* SAVE / CANCEL */}
       {editing ? (
         <View style={styles(theme).bottomBar}>
           <Pressable style={styles(theme).saveBtn} onPress={onSave}>
             <Check size={20} color={COLORS.WHITE} />
-            <Text style={styles(theme).saveText}>
-              {saving ? 'Saving...' : 'Save'}
-            </Text>
+            <Text style={styles(theme).saveText}>{saving ? 'Saving...' : 'Save'}</Text>
           </Pressable>
 
-          <Pressable
-            style={styles(theme).cancelBtn}
-            onPress={() => setEditing(false)}
-          >
+          <Pressable style={styles(theme).cancelBtn} onPress={() => setEditing(false)}>
             <X size={20} color={theme.colors.textSecondary} />
             <Text style={styles(theme).cancelText}>Cancel</Text>
           </Pressable>
         </View>
       ) : (
         <View style={{ marginTop: 100 }}>
-          <Button
-            title="Logout"
-            variant="outline-green"
-            onPress={logOut}
-          />
+          <Button title="Logout" variant="outline-green" onPress={logOut} />
         </View>
       )}
-   
     </View>
   );
 };
 
 export default Details;
 
-/* -------------------------------------------
-   REUSABLE PROFILE ROW
---------------------------------------------- */
-const ProfileRow = ({
-  icon,
-  label,
-  value,
-  editable,
-  inputValue,
-  placeholder,
-  onChangeText,
-  theme,
-}: any) => {
-  return (
-    <View style={styles(theme).rowBox}>
-      <View style={styles(theme).iconBox}>{icon}</View>
-
-      <View style={{ flex: 1 }}>
-        <Text style={styles(theme).label}>{label}</Text>
-
-        {editable ? (
-          <TextInput
-            value={inputValue}
-            onChangeText={onChangeText}
-            placeholder={placeholder}
-            placeholderTextColor={theme.colors.textSecondary}
-            style={styles(theme).input}
-          />
-        ) : (
-          <Text style={styles(theme).value}>{value || 'Not set'}</Text>
-        )}
-      </View>
+// -------------------------------
+// Reusable Profile Row
+// -------------------------------
+const ProfileRow = ({ icon, label, value, editable, inputValue, placeholder, onChangeText, theme }: any) => (
+  <View style={styles(theme).rowBox}>
+    <View style={styles(theme).iconBox}>{icon}</View>
+    <View style={{ flex: 1 }}>
+      <Text style={styles(theme).label}>{label}</Text>
+      {editable ? (
+        <TextInput
+          value={inputValue}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={theme.colors.textSecondary}
+          style={styles(theme).input}
+        />
+      ) : (
+        <Text style={styles(theme).value}>{value || 'Not set'}</Text>
+      )}
     </View>
-  );
-};
+  </View>
+);
 
-/* -------------------------------------------
-   STYLES – Uber/Bolt inspired
---------------------------------------------- */
-
+// -------------------------------
+// Styles – Uber/Bolt Inspired
+// -------------------------------
 const styles = (theme: any) =>
   StyleSheet.create({
-    title: {
-      fontSize: 28,
-      fontWeight: '700',
-      color: theme.colors.text,
-    },
-
-    subtitle: {
-      fontSize: 13,
-      fontWeight: '400',
-      color: theme.colors.textSecondary,
-      marginTop: 4,
-    },
-
-    headerRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
-
-    labelCenter: {
-      color: theme.colors.textSecondary,
-      textAlign: 'center',
-      marginTop: 10,
-    },
-
-    editBtn: {
-      backgroundColor: theme.colors.primary + '20',
-      padding: 10,
-      borderRadius: 100,
-    },
-
+    title: { fontSize: 28, fontWeight: '700', color: theme.colors.text },
+    subtitle: { fontSize: 13, fontWeight: '400', color: theme.colors.textSecondary, marginTop: 4 },
+    headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    labelCenter: { color: theme.colors.textSecondary, textAlign: 'center', marginTop: 10 },
+    editBtn: { backgroundColor: theme.colors.primary + '20', padding: 10, borderRadius: 100 },
     rowBox: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -360,7 +298,6 @@ const styles = (theme: any) =>
       elevation: 2,
       gap: 16,
     },
-
     iconBox: {
       width: 48,
       height: 48,
@@ -369,120 +306,31 @@ const styles = (theme: any) =>
       justifyContent: 'center',
       alignItems: 'center',
     },
-
-    label: {
-      fontSize: 13,
-      fontWeight: '500',
-      color: theme.colors.textSecondary,
-      marginBottom: 4,
-      letterSpacing: 0.3,
-      textTransform: 'uppercase',
-    },
-
-    value: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: theme.colors.text,
-    },
-
-    input: {
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      borderRadius: 10,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      color: theme.colors.text,
-      fontSize: 16,
-    },
-
-    selectBox: {
-      paddingVertical: 10,
-      paddingHorizontal: 12,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
-
+    label: { fontSize: 13, fontWeight: '500', color: theme.colors.textSecondary, marginBottom: 4, letterSpacing: 0.3, textTransform: 'uppercase' },
+    value: { fontSize: 16, fontWeight: '600', color: theme.colors.text },
+    input: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: theme.colors.border, color: theme.colors.text, fontSize: 16 },
+    selectBox: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     bottomBar: {
       position: 'absolute',
-      bottom: 10,
+      bottom: 20,
       left: 16,
       right: 16,
-      backgroundColor: theme.colors.surface,
       padding: 14,
-      borderRadius: 20,
+      backgroundColor: theme.colors.surface,
+      borderRadius: 18,
       flexDirection: 'row',
       gap: 12,
-      elevation: 20,
+      elevation: 10,
     },
-
-    saveBtn: {
-      flex: 1,
-      flexDirection: 'row',
-      backgroundColor: theme.colors.primary,
-      paddingVertical: 12,
-      borderRadius: 12,
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: 8,
-    },
+    saveBtn: { flex: 1, flexDirection: 'row', backgroundColor: theme.colors.primary, paddingVertical: 12, borderRadius: 12, justifyContent: 'center', alignItems: 'center', gap: 8 },
     saveText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-
-    cancelBtn: {
-      flex: 1,
-      flexDirection: 'row',
-      borderWidth: 1.5,
-      borderColor: theme.colors.border,
-      paddingVertical: 12,
-      borderRadius: 12,
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: 8,
-    },
+    cancelBtn: { flex: 1, flexDirection: 'row', borderWidth: 1.5, borderColor: theme.colors.border, paddingVertical: 12, borderRadius: 12, justifyContent: 'center', alignItems: 'center', gap: 8 },
     cancelText: { color: theme.colors.textSecondary, fontSize: 16 },
-
-    modalOverlay: {
-      flex: 1,
-      justifyContent: 'flex-end',
-      backgroundColor: 'rgba(0,0,0,0.4)',
-    },
-
-    sheet: {
-      backgroundColor: theme.colors.surface,
-      padding: 20,
-      borderTopLeftRadius: 22,
-      borderTopRightRadius: 22,
-    },
-
-    sheetTitle: {
-      fontSize: 18,
-      fontWeight: '700',
-      color: theme.colors.text,
-      marginBottom: 12,
-    },
-
-    sheetItem: {
-      paddingVertical: 14,
-    },
-    sheetItemText: {
-      fontSize: 16,
-      color: theme.colors.text,
-      fontWeight: '500',
-    },
-
-    sheetCancel: {
-      paddingVertical: 14,
-      marginTop: 12,
-      borderTopWidth: 1,
-      borderColor: theme.colors.border,
-    },
-    sheetCancelText: {
-      fontSize: 16,
-      textAlign: 'center',
-      fontWeight: '600',
-      color: theme.colors.primary,
-    },
+    modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+    sheet: { backgroundColor: theme.colors.surface, padding: 20, borderTopLeftRadius: 22, borderTopRightRadius: 22 },
+    sheetTitle: { fontSize: 18, fontWeight: '700', color: theme.colors.text, marginBottom: 12 },
+    sheetItem: { paddingVertical: 14 },
+    sheetItemText: { fontSize: 16, color: theme.colors.text, fontWeight: '500' },
+    sheetCancel: { paddingVertical: 14, marginTop: 12, borderTopWidth: 1, borderColor: theme.colors.border },
+    sheetCancelText: { fontSize: 16, textAlign: 'center', fontWeight: '600', color: theme.colors.primary },
   });

@@ -47,7 +47,7 @@ const Header = ({ title, isBackPresent = false }: HeaderProp) => {
       <Text
         style={{
           textAlign: "center",
-          fontSize: 16,
+          fontSize: 23,
           fontWeight: 500,
           color: theme.colors.text,
         }}
