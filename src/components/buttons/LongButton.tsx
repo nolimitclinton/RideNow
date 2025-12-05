@@ -1,7 +1,8 @@
 import React from 'react';
-import { Text, Pressable, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { Text, Pressable, StyleSheet, ViewStyle, TextStyle, Switch } from 'react-native';
 import * as LucideIcons from 'lucide-react-native';
 import { COLORS } from '../../constants/colors';
+import { useTheme } from '../../store/ThemeContext';
 
 type LongButtonProps = {
   text: string;
@@ -11,6 +12,11 @@ type LongButtonProps = {
   iconSize?: number;
   style?: ViewStyle;
   textStyle?: TextStyle;
+
+  // NEW — optional switch
+  enableSwitch?: boolean;
+  switchValue?: boolean;
+  onToggleSwitch?: (value: boolean) => void;
 };
 
 export default function LongButton({
@@ -21,26 +27,37 @@ export default function LongButton({
   iconSize = 20,
   style,
   textStyle,
-}: LongButtonProps) {
-  const IconComponent = icon
-    ? (LucideIcons[icon as keyof typeof LucideIcons] as unknown as React.ComponentType<any>)
-    : null;
 
-  const RenderedIcon = IconComponent ? (
-    <IconComponent color={iconColor} size={iconSize} style={styles.icon} />
-  ) : null;
+  enableSwitch = false,
+  switchValue = false,
+  onToggleSwitch,
+}: LongButtonProps) {
+  const { theme } = useTheme();
+  const IconComponent = icon
+    ? (LucideIcons[icon] as unknown as React.ComponentType<any>)
+    : null;
 
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
+        { backgroundColor: theme.primary },
         style,
         pressed && { opacity: 0.8 },
       ]}
     >
-      {RenderedIcon}
+      {IconComponent && <IconComponent color={iconColor} size={iconSize} style={styles.icon} />}
+
       <Text style={[styles.text, textStyle]}>{text}</Text>
+
+      {/* Optional Switch */}
+      {enableSwitch && (
+        <Switch
+          value={switchValue}
+          onValueChange={onToggleSwitch}
+        />
+      )}
     </Pressable>
   );
 }
@@ -49,7 +66,7 @@ const styles = StyleSheet.create({
   button: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between', // ← adjust spacing
     backgroundColor: COLORS.GREEN,
     borderRadius: 10,
     paddingVertical: 14,
