@@ -29,7 +29,7 @@ WebBrowser.maybeCompleteAuthSession();
 
 const BORDER = '#E6E6E6';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const AVATAR_KEY_PREFIX = 'avatar:'; // same prefix used in Drawer / Avatar
+const AVATAR_KEY_PREFIX = 'avatar:'; 
 
 export default function SignupScreen() {
   const nav = useNavigation();
@@ -107,7 +107,6 @@ export default function SignupScreen() {
     setErr(null);
     setLoading(true);
     try {
-      // create user in Firebase (auth + Firestore)
       const user = await signUpEmail({
         name: name.trim(),
         email: email.trim(),
@@ -115,7 +114,6 @@ export default function SignupScreen() {
         country: country.trim() || undefined,
         phone: phone.trim() || undefined,
         gender: gender || undefined,
-        // we are no longer using Storage; this stays for compatibility
         profileImageUri: profileImage ?? undefined,
       });
 
@@ -156,8 +154,6 @@ export default function SignupScreen() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        // New API is `mediaTypes: ImagePicker.MediaType.Images`, but the old one still works;
-        // you can swap this to remove the warning:
         // mediaTypes: ImagePicker.MediaType.Images,
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
