@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 type DrawerParamList = {
   MainTabs: undefined;
   History: undefined;
+  AddressInput: undefined;
 };
 
 const Drawer = createDrawerNavigator<DrawerParamList>();
@@ -153,6 +154,7 @@ export default function AppDrawer() {
       drawerContent={(props) => <CustomDrawerContent {...props} />}
     >
       <Drawer.Screen name="MainTabs" component={TabNavigator} />
+      <Drawer.Screen name="AddressInput" component={require('../screens/AddressInputScreen').default} options={{ drawerItemStyle: { display: 'none' } }} />
       {/* <Drawer.Screen name="History" component={HistoryScreen} /> */}
     </Drawer.Navigator>
   );

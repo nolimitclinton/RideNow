@@ -114,7 +114,7 @@ const HistoryRender = () => {
   }
 
   return (
-    <View style={{ flex: 1, paddingHorizontal: 16 }}>
+    <View style={{ flex: 1, paddingHorizontal: 16, }}>
       <Text style={{ marginVertical: 12, fontSize: 18, fontWeight: "600", color: theme.colors.text }}>
         Completed Trips
       </Text>

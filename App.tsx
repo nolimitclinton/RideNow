@@ -11,7 +11,7 @@ import AppDrawer from './src/navigation/DrawerNavigation';
 import AuthNavigator from './src/navigation/AuthNavigator';
 import VerifyEmailScreen from './src/screens/auth/VerifyEmailScreen';
 import { AuthProvider, useAuth } from './src/store/AuthProvider';
-import { ThemeProvider } from './src/store/ThemeProvider';
+import { ThemeProvider, useTheme } from './src/store/ThemeProvider';
 
 const ONBOARDING_KEY = 'onboarding.done';
 
@@ -59,16 +59,24 @@ function Root() {
 }
 
 export default function App() {
+  // A small component inside ThemeProvider to read theme and set StatusBar accordingly
+  const ThemeAwareStatusBar: React.FC = () => {
+    const { themeMode, theme } = useTheme();
+    // expo-status-bar supports `style` prop: 'light' | 'dark'
+    return <StatusBar style={themeMode === 'dark' ? 'light' : 'dark'} backgroundColor={theme.colors.background} />;
+  };
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
         <AuthProvider>
+          {/* status bar must be inside ThemeProvider so it can read the current theme */}
+          <ThemeAwareStatusBar />
           <NavigationContainer>
             <Root />
           </NavigationContainer>
         </AuthProvider>
       </ThemeProvider>
-      <StatusBar style="dark" />
+      
     </GestureHandlerRootView>
   );
 }
