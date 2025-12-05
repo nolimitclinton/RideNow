@@ -10,7 +10,8 @@ import {
   Keyboard,
   ScrollView,
   Animated,
-  DeviceEventEmitter
+  DeviceEventEmitter,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import MapView, { PROVIDER_GOOGLE, Marker, Polyline } from "react-native-maps";
@@ -28,6 +29,7 @@ import { db } from "../services/firebase";
 import { collection, addDoc } from "firebase/firestore";
 
 const GOOGLE_API_KEY = "AIzaSyC3B1BNTq8re47QL2ltM5zdZYujKIX4tKs";
+const DEFAULT_CAR_IMAGE = 'https://cdn-icons-png.flaticon.com/512/743/743922.png';
 
 export default function HomeScreen() {
   const { theme, themeMode } = useTheme();
@@ -42,6 +44,8 @@ export default function HomeScreen() {
   const [driverLocation, setDriverLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [isDriverMoving, setIsDriverMoving] = useState(false);
   const [rideCompleted, setRideCompleted] = useState(false);
+  // optional driver image url (if driver profile/photo is available)
+  const [driverImageUrl, setDriverImageUrl] = useState<string | null>(null);
 
   const mapRef = useRef<MapView | null>(null);
 
@@ -69,7 +73,7 @@ export default function HomeScreen() {
         // Reached destination
         setIsDriverMoving(false);
         setRideCompleted(true);
-        Alert.alert("Arrived!", "I don reach!");
+        Alert.alert("Arrived!", "You have reached your destination!");
         
         try {
           const driverNames = ["John Doe", "Jane Smith", "Mike Johnson", "Sarah Wilson", "David Brown"];
@@ -333,14 +337,23 @@ export default function HomeScreen() {
           <Polyline coordinates={routeCoords} strokeWidth={4} strokeColor={theme.colors.primary} />
         )}
 
-        {/* Driver Marker */}
+        {/* Driver Marker: show driver's image if available, otherwise a car icon from the web */}
         {driverLocation && (isSearchingDriver || isDriverMoving) && (
           <Marker
             coordinate={driverLocation}
             title="Driver"
             description={isSearchingDriver ? "Finding closest driver..." : "On the way"}
-            pinColor="yellow"
-          />
+          >
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <Image
+               source={require('../../assets/carIcon.png')}
+              
+                style={{ width: 44, height: 44 }}
+                resizeMode="contain"
+              />
+              
+            </View>
+          </Marker>
         )}
       </MapView>
 

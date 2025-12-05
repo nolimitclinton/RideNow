@@ -6,6 +6,7 @@ import { db } from "../../services/firebase";
 import HistoryItem from "./HistoryItem";
 import { useTheme } from "../../store/ThemeProvider";
 import { X, MapPin, Clock, User, Zap, Trash2 as Trash } from "lucide-react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 interface ItemProps {
   id?: string;
@@ -133,7 +134,7 @@ const HistoryRender = () => {
         animationType="slide"
         onRequestClose={() => setSelectedTrip(null)}
       >
-        <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
           {/* Header */}
           <View style={{
             backgroundColor: theme.colors.surface,
@@ -295,7 +296,7 @@ const HistoryRender = () => {
               </View>
             </View>
           )}
-        </View>
+        </SafeAreaView>
       </Modal>
     </View>
   );
