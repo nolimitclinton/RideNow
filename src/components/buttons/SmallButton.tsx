@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, Pressable, StyleSheet, ViewStyle, TextStyle } from 'react-native';
 import * as LucideIcons from 'lucide-react-native';
-import { COLORS } from '../../constants/colors';
+import { useTheme } from '../../store/ThemeProvider';
 
 type SmallButtonProps = {
   text?: string;
@@ -17,11 +17,12 @@ export default function SmallButton({
   text,
   onPress,
   icon,
-  iconColor = COLORS.WHITE,
+  iconColor = '#ffffff',
   iconSize = 16,
   style,
   textStyle,
 }: SmallButtonProps) {
+  const { theme } = useTheme();
   const IconComponent =
     icon
       ? (LucideIcons[icon as keyof typeof LucideIcons] as unknown as React.ComponentType<any>)
@@ -37,12 +38,13 @@ export default function SmallButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
+        { backgroundColor: theme.colors.primary },
         style,
         pressed && { opacity: 0.8 },
       ]}
     >
       {RenderedIcon}
-      {text&&(<Text style={[styles.text, textStyle]}>{text}</Text>)}
+      {text&&(<Text style={[styles.text, { color: theme.colors.background }, textStyle]}>{text}</Text>)}
     </Pressable>
   );
 }
@@ -52,14 +54,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.GREEN,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
     gap: 6,
   },
   text: {
-    color: COLORS.WHITE,
     fontSize: 14,
     fontWeight: '600',
   },

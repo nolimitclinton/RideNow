@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import React from "react";
 import { ChevronLeft } from "lucide-react-native";
-import { COLORS } from "../../constants/colors";
+import { useTheme } from "../../store/ThemeProvider";
 import { useNavigation } from "@react-navigation/native";
 
 interface HeaderProp {
@@ -11,6 +11,7 @@ interface HeaderProp {
 
 const Header = ({ title, isBackPresent = false }: HeaderProp) => {
   const navigate = useNavigation();
+  const { theme } = useTheme();
 
   return (
     <View
@@ -48,7 +49,7 @@ const Header = ({ title, isBackPresent = false }: HeaderProp) => {
           textAlign: "center",
           fontSize: 16,
           fontWeight: 500,
-          color: COLORS.DARK_GRAY,
+          color: theme.colors.text,
         }}
       >
         {title}

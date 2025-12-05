@@ -13,6 +13,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { COLORS } from '../../constants/colors';
 import { signInEmail } from '../../services/auth'; 
+import { useTheme } from '../../store/ThemeProvider';
 
 const BORDER = '#E6E6E6';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -24,6 +25,7 @@ export default function LoginScreen() {
   const [secure, setSecure] = useState(true);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const{theme}=useTheme();
 
   const canSubmit = useMemo(
     () => EMAIL_RE.test(email.trim()) && password.length >= 6 && !loading,
@@ -47,24 +49,24 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.container,{backgroundColor:theme.colors.background}]} keyboardShouldPersistTaps="handled">
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Welcome back</Text>
-          <Text style={styles.subtitle}>Sign in to continue</Text>
+          <Text style={[styles.title, { color: theme.colors.text }]}>Welcome back</Text>
+          {/* <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Already have an account?</Text><Text style={styles.subtitle}>Sign in to continue</Text> */}
         </View>
 
         {/* Error */}
         {err ? (
-          <View style={styles.errorBox} accessibilityLiveRegion="polite">
-            <Text style={styles.errorText}>{err}</Text>
+          <View style={[styles.errorBox, { backgroundColor: theme.colors.error }]} role="alert" aria-relevant="additions" aria-atomic={true} accessibilityLiveRegion="polite">
+            <Text style={[{ color: theme.colors.background }]}>Error</Text><Text style={styles.errorText}>{err}</Text>
           </View>
         ) : null}
 
         {/* Form */}
         <View style={styles.form}>
           <View style={styles.field}>
-            <Text style={styles.label}>Email</Text>
+            <Text style={[styles.label,{color:theme.colors.text}]}>Email</Text>
             <TextInput
               value={email}
               onChangeText={(t) => { setEmail(t); if (err) setErr(null); }}
@@ -80,7 +82,7 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Password</Text>
+            <Text style={[styles.label,{color:theme.colors.text}]}>Password</Text>
             <View style={styles.passwordRow}>
               <TextInput
                 value={password}
@@ -146,7 +148,7 @@ function humanizeFirebaseError(codeOrMsg: string) {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: COLORS.WHITE,
+    
     paddingHorizontal: 24,
     paddingTop: 60,
     paddingBottom: 24,

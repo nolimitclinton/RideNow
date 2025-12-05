@@ -1,13 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { COLORS } from '../../constants/colors';
+import { useTheme } from '../../store/ThemeProvider';
 
 export default function WelcomeScreen() {
   const nav = useNavigation();
+  const { theme } = useTheme();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Illustration */}
       <Image
         source={require('../../../assets/icons/welcome.png')}
@@ -16,23 +17,23 @@ export default function WelcomeScreen() {
       />
 
       {/* Title + subtitle */}
-      <Text style={styles.title}>Welcome</Text>
-      <Text style={styles.subtitle}>Have a better sharing experience</Text>
+      <Text style={[styles.title, { color: theme.colors.text }]}>Welcome</Text>
+      <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Have a better sharing experience</Text>
 
       {/* Buttons */}
       <View style={styles.btnWrap}>
         <Pressable
           onPress={() => nav.navigate('Signup' as never)}
-          style={({ pressed }) => [styles.primary, pressed && { opacity: 0.9 }]}
+          style={({ pressed }) => [styles.primary, { backgroundColor: theme.colors.primaryLight }, pressed && { opacity: 0.9 }]}
         >
-          <Text style={styles.primaryTxt}>Create an account</Text>
+          <Text style={[styles.primaryTxt, { color: theme.colors.background }]}>Create an account</Text>
         </Pressable>
 
         <Pressable
           onPress={() => nav.navigate('Login' as never)}
-          style={({ pressed }) => [styles.outline, pressed && { opacity: 0.9 }]}
+          style={({ pressed }) => [styles.outline, { borderColor: theme.colors.primary, backgroundColor: theme.colors.background }, pressed && { opacity: 0.9 }]}
         >
-          <Text style={styles.outlineTxt}>Log In</Text>
+          <Text style={[styles.outlineTxt, { color: theme.colors.primary }]}>Log In</Text>
         </Pressable>
       </View>
     </View>
@@ -44,7 +45,6 @@ const BORDER = '#E6E6E6';
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.WHITE,
     paddingHorizontal: 24,
     paddingTop: 40,
     alignItems: 'center',
@@ -56,13 +56,11 @@ const styles = StyleSheet.create({
   },
   title: {
     marginTop: 18,
-    color: COLORS.DARK_GRAY,
     fontSize: 24,
     fontWeight: '700',
   },
   subtitle: {
     marginTop: 6,
-    color: COLORS.GRAY,
     fontSize: 14,
   },
   btnWrap: {
@@ -72,12 +70,10 @@ const styles = StyleSheet.create({
   primary: {
     height: 52,
     borderRadius: 12,
-    backgroundColor: COLORS.LIGHT_GREEN,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryTxt: {
-    color: COLORS.WHITE,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -86,13 +82,10 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.GREEN,
-    backgroundColor: COLORS.WHITE,
     alignItems: 'center',
     justifyContent: 'center',
   },
   outlineTxt: {
-    color: COLORS.GREEN,
     fontSize: 16,
     fontWeight: '700',
   },

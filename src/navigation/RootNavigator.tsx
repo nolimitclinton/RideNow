@@ -2,7 +2,7 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import Onboarding from '../components/Onboarding';
+import Onboarding from '../components/onboarding/Onboarding';
 import AuthNavigator from './AuthNavigator';
 import AppDrawer from './DrawerNavigation';
 import VerifyEmailScreen from '../screens/auth/VerifyEmailScreen';

@@ -4,12 +4,12 @@ import { View, Text, StyleSheet, Pressable, Alert, TextInput } from 'react-nativ
 import { COLORS } from '../../constants/colors';
 import { auth } from '../../services/firebase';
 import { refreshCurrentUser, resendVerificationEmail, verifyWithCode } from '../../services/auth';
-
+import { useTheme } from '../../store/ThemeProvider';
 export default function VerifyEmailScreen() {
   const email = auth.currentUser?.email ?? '';
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
-
+  const{theme}=useTheme();
   async function onResend() {
   setBusy(true);
   try {
@@ -52,22 +52,23 @@ export default function VerifyEmailScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Verify your account</Text>
-      <Text style={styles.subtitle}>We sent a link to:</Text>
-      <Text style={styles.email}>{email}</Text>
+    <View style={[styles.container,{backgroundColor:theme.colors.background}]}>
+      <Text style={[styles.title,{color:theme.colors.text}]}>Verify your account</Text>
+      <Text style={[styles.subtitle,{color:theme.colors.textSecondary}]}>We sent a link to:</Text>
+      <Text style={[styles.email,{color:theme.colors.text}]}>{email}</Text>
 
       <View style={{ height: 16 }} />
 
-      <Text style={{ color: COLORS.GRAY, marginBottom: 8 }}>
+      <Text style={{  marginBottom: 8, color:theme.colors.textSecondary }}>
         Development shortcut: enter the 6-digit code (see console/logs).
       </Text>
       <TextInput
         value={code}
         onChangeText={setCode}
         placeholder="6-digit code"
+        placeholderTextColor={theme.colors.text}
         keyboardType="numeric"
-        style={styles.input}
+        style={[styles.input, { color:theme.colors.text, borderColor:theme.colors.border }]}
       />
       <Pressable disabled={busy} onPress={onSubmitCode} style={[styles.cta, busy && { opacity: 0.6 }]}>
         <Text style={styles.ctaTxt}>Verify with code</Text>
@@ -87,8 +88,8 @@ export default function VerifyEmailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.WHITE, padding: 24, alignItems: 'center', justifyContent: 'center' },
-  title: { color: COLORS.DARK_GRAY, fontSize: 24, fontWeight: '700' },
+  container: { flex: 1, padding: 24, alignItems: 'center', justifyContent: 'center' },
+  title: {  fontSize: 24, fontWeight: '700' },
   subtitle: { marginTop: 8, color: COLORS.GRAY, fontSize: 14 },
   email: { marginTop: 4, color: COLORS.DARK_GRAY, fontSize: 16, fontWeight: '600' },
   input: {

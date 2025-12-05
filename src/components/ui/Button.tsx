@@ -7,7 +7,7 @@ import {
   ImageSourcePropType,
   ViewStyle,
 } from "react-native";
-import { COLORS } from "../../constants/colors";
+import { useTheme } from "../../store/ThemeProvider";
 
 type ButtonVariant = "default" | "outline-green" | "outline-black";
 
@@ -28,22 +28,24 @@ export default function Button({
   style,
   disabled = false,
 }: Props) {
+  const { theme } = useTheme();
+
   let backgroundColor = "";
   let borderColor = "";
   let textColor = "";
 
   if (variant === "default") {
-    backgroundColor = COLORS.GREEN;
-    borderColor = COLORS.GREEN;
-    textColor = COLORS.WHITE;
+    backgroundColor = theme.colors.primary;
+    borderColor = theme.colors.primary;
+    textColor = theme.colors.background;
   } else if (variant === "outline-green") {
     backgroundColor = "transparent";
-    borderColor = COLORS.GREEN;
-    textColor = COLORS.GREEN;
+    borderColor = theme.colors.primary;
+    textColor = theme.colors.primary;
   } else if (variant === "outline-black") {
     backgroundColor = "transparent";
-    borderColor = COLORS.LIGHT_GRAY;
-    textColor = COLORS.DARK_GRAY;
+    borderColor = theme.colors.border;
+    textColor = theme.colors.textSecondary;
   }
   const opacityStyle = disabled ? { opacity: 0.6 } : null;
   return (

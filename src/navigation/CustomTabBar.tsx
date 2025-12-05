@@ -2,7 +2,7 @@ import React from "react";
 import { View, Pressable, Image, Text, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { COLORS } from "../constants/colors";
+import { useTheme } from "../store/ThemeProvider";
 
 type TabIcon = {
   active: any;
@@ -32,6 +32,7 @@ const icons: IconMap = {
 
 export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { theme } = useTheme();
 
   return (
     <View
@@ -39,7 +40,9 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
         styles.container,
         {
           paddingBottom: insets.bottom,
-          height: 65 + insets.bottom, 
+          height: 65 + insets.bottom,
+          backgroundColor: theme.colors.background,
+          borderTopColor: theme.colors.border,
         },
       ]}
     >
@@ -75,7 +78,7 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
               style={styles.icon}
               resizeMode="contain"
             />
-            <Text style={[styles.label, focused && styles.activeLabel]}>
+            <Text style={[styles.label, focused && [styles.activeLabel, { color: theme.colors.primary }], { color: theme.colors.textSecondary }]}>
               {icon.label}
             </Text>
           </Pressable>
@@ -91,8 +94,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-around",
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.WHITE,
-    backgroundColor: COLORS.WHITE,
   },
   item: {
     flex: 1,
@@ -106,10 +107,8 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 11,
-    color: COLORS.LIGHT_GRAY,
   },
   activeLabel: {
-    color: COLORS.DARK_GRAY,
     fontWeight: "600",
   },
 });

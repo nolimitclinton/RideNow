@@ -22,7 +22,7 @@ import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { auth, db } from '../../services/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import * as ImagePicker from 'expo-image-picker';
-
+import { useTheme } from '../../store/ThemeProvider';
 WebBrowser.maybeCompleteAuthSession();
 
 const BORDER = '#E6E6E6';
@@ -45,7 +45,7 @@ export default function SignupScreen() {
   const [showGenderPicker, setShowGenderPicker] = useState(false);
 
   const [profileImage, setProfileImage] = useState<string | null>(null);
-
+  const{theme}=useTheme();
   // Google auth setup
   const redirectUri = makeRedirectUri();
 
@@ -150,10 +150,10 @@ export default function SignupScreen() {
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.container,{backgroundColor:theme.colors.background}]} keyboardShouldPersistTaps="handled">
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Sign up with your email or phone number</Text>
+          <Text style={[styles.title,{color:theme.colors.text}]}>Sign up with your email or phone number</Text>
         </View>
 
         {/* Profile image picker */}

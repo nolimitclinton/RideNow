@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { COLORS } from "../../constants/colors";
+import { useTheme } from "../../store/ThemeProvider";
 
 const filterNav = ["Upcoming", "Completed", "Cancelled"];
 
@@ -10,6 +10,7 @@ interface FilterTabProps {
 
 const FilterTab = ({ onFilterChange }: FilterTabProps) => {
   const [activeFilter, setActiveFilter] = useState("Upcoming");
+  const { theme } = useTheme();
 
   const handlePress = (item: string) => {
     setActiveFilter(item);
@@ -18,17 +19,17 @@ const FilterTab = ({ onFilterChange }: FilterTabProps) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { borderColor: theme.colors.primaryLight, backgroundColor: theme.colors.secondary }]}>
       {filterNav.map((item) => {
         const isActive = item === activeFilter;
         return (
           <Pressable
             key={item}
             onPress={() => handlePress(item)}
-            style={[styles.button, isActive && styles.buttonActive]}
+            style={[styles.button, isActive && [styles.buttonActive, { backgroundColor: theme.colors.primary }]]}
           >
             <Text
-              style={isActive ? styles.buttonActiveText : styles.buttonText}
+              style={isActive ? [styles.buttonActiveText, { color: theme.colors.background }] : [styles.buttonText, { color: theme.colors.text }]}
             >
               {item}
             </Text>
@@ -47,8 +48,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
     borderRadius: 8,
-    borderColor: COLORS.LIGHT_GREEN,
-    backgroundColor: COLORS.EXTRA_LIGHT_GREEN,
     overflow: "hidden",
     marginBottom: 12,
   },
@@ -60,14 +59,11 @@ const styles = StyleSheet.create({
     borderRadius: 7,
   },
   buttonActive: {
-    backgroundColor: COLORS.GREEN,
   },
   buttonText: {
-    color: COLORS.DARK_GRAY,
     fontWeight: "500",
   },
   buttonActiveText: {
-    color: COLORS.WHITE,
     fontWeight: "600",
   },
 });

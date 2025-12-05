@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 import React from "react";
-import { COLORS } from "../../constants/colors";
+import { useTheme } from "../../store/ThemeProvider";
 
 export interface HistoryItemProp {
   name: string;
@@ -10,17 +10,18 @@ export interface HistoryItemProp {
 }
 
 const HistoryItem = ({ name, carName, date, time }: HistoryItemProp) => {
+  const { theme } = useTheme();
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { borderColor: theme.colors.primaryLight }]}>
       <View style={{ gap: 8 }}>
-        <Text style={{ fontWeight: 500, color: COLORS.DARK_GRAY }}>{name}</Text>
-        <Text style={{ color: COLORS.GRAY }}>{carName}</Text>
+        <Text style={{ fontWeight: 500, color: theme.colors.text }}>{name}</Text>
+        <Text style={{ color: theme.colors.textSecondary }}>{carName}</Text>
       </View>
       <View style={{ alignItems: 'flex-end' }}>
-        <Text style={{ fontWeight: 400, color: COLORS.GRAY }}>
+        <Text style={{ fontWeight: 400, color: theme.colors.textSecondary }}>
           {date}
         </Text>
-        <Text style={{ fontWeight: 400, color: COLORS.GRAY }}>
+        <Text style={{ fontWeight: 400, color: theme.colors.textSecondary }}>
           {time}
         </Text>
       </View>
@@ -34,7 +35,6 @@ const styles = StyleSheet.create({
   container: {
     padding: 16,
     marginVertical: 8,
-    borderColor: COLORS.LIGHT_GREEN,
     borderWidth: 1.5,
     flexDirection: "row",
     justifyContent: "space-between",

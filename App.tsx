@@ -11,6 +11,7 @@ import AppDrawer from './src/navigation/DrawerNavigation';
 import AuthNavigator from './src/navigation/AuthNavigator';
 import VerifyEmailScreen from './src/screens/auth/VerifyEmailScreen';
 import { AuthProvider, useAuth } from './src/store/AuthProvider';
+import { ThemeProvider } from './src/store/ThemeProvider';
 
 const ONBOARDING_KEY = 'onboarding.done';
 
@@ -60,11 +61,13 @@ function Root() {
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AuthProvider>
-        <NavigationContainer>
-          <Root />
-        </NavigationContainer>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <NavigationContainer>
+            <Root />
+          </NavigationContainer>
+        </AuthProvider>
+      </ThemeProvider>
       <StatusBar style="dark" />
     </GestureHandlerRootView>
   );

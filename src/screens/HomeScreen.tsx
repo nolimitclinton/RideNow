@@ -19,7 +19,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import SearchBar from "../components/SearchBar";
 import BottomPanel, { BottomPanelHandle } from "../components/modals/BottomPanel";
 import SmallButton from "../components/buttons/SmallButton";
-import { COLORS } from "../constants/colors";
+import { useTheme } from "../store/ThemeProvider";
 import "react-native-get-random-values"; // ✅ prevents UUID crash
 import LongButton from "../components/buttons/LongButton";
 import { db } from "../services/firebase";
@@ -28,6 +28,7 @@ import { collection, addDoc } from "firebase/firestore";
 const GOOGLE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_API_KEY;
 
 export default function HomeScreen() {
+  const { theme } = useTheme();
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationName, setLocationName] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -277,9 +278,9 @@ export default function HomeScreen() {
 
   if (!location) {
     return (
-      <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color={COLORS.GREEN} />
-        <Text style={styles.loadingText}>Getting Location...</Text>
+      <View style={[styles.loaderContainer, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={[styles.loadingText, { color: theme.colors.text }]}>Getting Location...</Text>
       </View>
     );
   }
@@ -320,12 +321,12 @@ export default function HomeScreen() {
               <Marker
                 coordinate={{ latitude: destinationMarker.latitude, longitude: destinationMarker.longitude }}
                 title={destinationQuery || "Destination"}
-                pinColor={COLORS.GREEN}
+                pinColor={theme.colors.primary}
               />
             ) : null}
             {/* Route Polyline */}
             {routeCoords.length > 0 ? (
-              <Polyline coordinates={routeCoords} strokeWidth={4} strokeColor={COLORS.GREEN} />
+              <Polyline coordinates={routeCoords} strokeWidth={4} strokeColor={theme.colors.primary} />
             ) : null}
 
             {/* Driver Marker */}
@@ -463,9 +464,8 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: COLORS.WHITE,
   },
-  loadingText: { marginTop: 10, fontSize: 16, color: COLORS.DARK_GRAY },
+  loadingText: { marginTop: 10, fontSize: 16 },
   overlayButton: { position: "absolute", top: 50, left: 20, zIndex: 10 },
   bottomContent: { gap: 5, padding: 10 },
   panelTitle: { fontWeight: "bold", alignSelf: "center", fontSize: 20 },
@@ -474,13 +474,11 @@ const styles = StyleSheet.create({
     height: "100%",
     justifyContent: "flex-start",
     gap: 5,
-    //backgroundColor: COLORS.LIGHT_GRAY,
     borderRadius: 8,
   
   },
   resultItem: {
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.LIGHT_GRAY,
   },
 });
