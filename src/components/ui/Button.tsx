@@ -5,6 +5,7 @@ import {
   Image,
   StyleSheet,
   ImageSourcePropType,
+  ViewStyle,
 } from "react-native";
 import { COLORS } from "../../constants/colors";
 
@@ -15,7 +16,8 @@ interface Props {
   onPress?: () => void;
   variant?: ButtonVariant;
   icon?: ImageSourcePropType;
-  style?: object;
+  style?: ViewStyle | ViewStyle[];
+  disabled?: boolean;
 }
 
 export default function Button({
@@ -24,6 +26,7 @@ export default function Button({
   variant = "default",
   icon,
   style,
+  disabled = false,
 }: Props) {
   let backgroundColor = "";
   let borderColor = "";
@@ -42,12 +45,13 @@ export default function Button({
     borderColor = COLORS.LIGHT_GRAY;
     textColor = COLORS.DARK_GRAY;
   }
-
+  const opacityStyle = disabled ? { opacity: 0.6 } : null;
   return (
     <TouchableOpacity
-      style={[styles.button, { backgroundColor, borderColor }, style]}
+      style={[styles.button, { backgroundColor, borderColor }, opacityStyle,style]}
       onPress={onPress}
       activeOpacity={0.8}
+      disabled={disabled}
     >
       {icon && <Image source={icon} style={styles.icon} />}
       <Text style={[styles.text, { color: textColor }]}>{title}</Text>

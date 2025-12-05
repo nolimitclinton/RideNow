@@ -1,14 +1,62 @@
-// src/components/profile/Avatar.tsx
-import React from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Camera } from 'lucide-react-native';
 import { COLORS } from '../../constants/colors';
 import { useAuth } from '../../store/AuthProvider';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
+
+const AVATAR_KEY_PREFIX = 'avatar:';
 
 const Avatar = () => {
   const { user } = useAuth();
-  const photoURL = user?.photoURL || null;
+  const [localUri, setLocalUri] = useState<string | null>(null);
+
   const initials = user?.displayName?.[0]?.toUpperCase() ?? '?';
+
+  useEffect(() => {
+    if (!user) {
+      setLocalUri(null);
+      return;
+    }
+    const key = AVATAR_KEY_PREFIX + user.uid;
+    AsyncStorage.getItem(key).then((uri) => {
+      if (uri) setLocalUri(uri);
+    });
+  }, [user]);
+
+  const photoURL = localUri || user?.photoURL || null;
+
+  async function onChangePhoto() {
+    if (!user) {
+      Alert.alert('Not signed in', 'You must be signed in to change your photo.');
+      return;
+    }
+
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Allow photo access to change your avatar.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets?.length) {
+        const uri = result.assets[0].uri;
+        setLocalUri(uri);
+        await AsyncStorage.setItem(AVATAR_KEY_PREFIX + user.uid, uri);
+      }
+    } catch (e) {
+      console.log('Avatar picker error', e);
+      Alert.alert('Error', 'Could not change your photo.');
+    }
+  }
 
   return (
     <View style={{ alignItems: 'center' }}>
@@ -27,9 +75,7 @@ const Avatar = () => {
         <Pressable
           hitSlop={20}
           style={styles.cameraButton}
-          onPress={() => {
-            // later: hook into "change photo" flow
-          }}
+          onPress={onChangePhoto}
         >
           <Camera />
         </Pressable>

@@ -6,10 +6,10 @@ import TabNavigator from './TabNavigator';
 import LongButton from '../components/buttons/LongButton';
 import SmallButton from '../components/buttons/SmallButton';
 import { COLORS } from '../constants/colors';
-import { auth, db } from '../services/firebase';
+import { auth } from '../services/firebase';
 import { signOut } from 'firebase/auth';
 import { useAuth } from '../store/AuthProvider';
-import { doc, onSnapshot } from 'firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type DrawerParamList = {
   MainTabs: undefined;
@@ -17,30 +17,34 @@ type DrawerParamList = {
 };
 
 const Drawer = createDrawerNavigator<DrawerParamList>();
+const AVATAR_KEY_PREFIX = 'avatar:';
 
 function CustomDrawerContent(props: any) {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
-  const [firestorePhotoURL, setFirestorePhotoURL] = useState<string | null>(null);
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setAvatarUri(null);
+      return;
+    }
 
-    const ref = doc(db, 'users', user.uid);
-    const unsub = onSnapshot(ref, (snap) => {
-      if (snap.exists()) {
-        const data = snap.data() as any;
-        setFirestorePhotoURL(data.photoURL ?? null);
+    const key = AVATAR_KEY_PREFIX + user.uid;
+    AsyncStorage.getItem(key).then((uri) => {
+      if (uri) {
+        setAvatarUri(uri);
+      } else {
+        setAvatarUri(null);
       }
     });
-
-    return unsub;
   }, [user]);
 
   const displayName =
     user?.displayName || (user?.email ? user.email.split('@')[0] : 'Rider');
   const email = user?.email || '—';
-  const effectivePhotoURL = firestorePhotoURL || user?.photoURL || null;
+
+  const effectivePhotoURL = avatarUri || user?.photoURL || null;
 
   async function onLogout() {
     try {
