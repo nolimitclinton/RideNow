@@ -62,14 +62,14 @@ export default function App() {
   // A small component inside ThemeProvider to read theme and set StatusBar accordingly
   const ThemeAwareStatusBar: React.FC = () => {
     const { themeMode, theme } = useTheme();
-    // expo-status-bar supports `style` prop: 'light' | 'dark'
+    
     return <StatusBar style={themeMode === 'dark' ? 'light' : 'dark'} backgroundColor={theme.colors.background} />;
   };
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
         <AuthProvider>
-          {/* status bar must be inside ThemeProvider so it can read the current theme */}
+  
           <ThemeAwareStatusBar />
           <NavigationContainer>
             <Root />
