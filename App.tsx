@@ -16,7 +16,7 @@ import { ThemeProvider } from './src/store/ThemeProvider';
 const ONBOARDING_KEY = 'onboarding.done';
 
 function Root() {
-  const { user, verified } = useAuth(); 
+  const { user, verified, authReady } = useAuth(); 
   const [booting, setBooting] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(true);
 
@@ -32,13 +32,13 @@ function Root() {
   }, []);
 
   // Splash screen while initializing
-  if (booting || user === undefined) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator />
-      </View>
-    );
-  }
+  if (booting || !authReady || user === undefined) {
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <ActivityIndicator />
+    </View>
+  );
+}
 
   // Show onboarding once
   if (showOnboarding) {

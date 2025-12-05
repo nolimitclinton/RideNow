@@ -22,21 +22,26 @@ import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { auth, db } from '../../services/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../store/ThemeProvider';
+
 WebBrowser.maybeCompleteAuthSession();
 
 const BORDER = '#E6E6E6';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const AVATAR_KEY_PREFIX = 'avatar:'; // same prefix used in Drawer / Avatar
 
 export default function SignupScreen() {
   const nav = useNavigation();
+  const { theme } = useTheme();
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
 
   const [country, setCountry] = useState('');
   const [phone, setPhone] = useState('');
-
   const [gender, setGender] = useState<'Male' | 'Female' | 'Other' | ''>('');
+
   const [password, setPassword] = useState('');
   const [secure, setSecure] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -45,7 +50,7 @@ export default function SignupScreen() {
   const [showGenderPicker, setShowGenderPicker] = useState(false);
 
   const [profileImage, setProfileImage] = useState<string | null>(null);
-  const{theme}=useTheme();
+
   // Google auth setup
   const redirectUri = makeRedirectUri();
 
@@ -97,40 +102,63 @@ export default function SignupScreen() {
     return okName && okEmail && okPass && agree && !loading;
   }, [name, email, password, agree, loading]);
 
-   async function onSubmit() {
-  if (!canSubmit) return;
-  setErr(null);
-  setLoading(true);
-  try {
-    await signUpEmail({
-      name: name.trim(),
-      email: email.trim(),
-      password,
-      country: country.trim() || undefined,
-      phone: phone.trim() || undefined,
-      gender: gender || undefined,
-      profileImageUri: profileImage ?? undefined,
-    });
-  } catch (e: any) {
-    const msg = e?.code || e?.message || 'Sign up failed';
-    setErr(humanize(msg));
-  } finally {
-    setLoading(false);
+  async function onSubmit() {
+    if (!canSubmit) return;
+    setErr(null);
+    setLoading(true);
+    try {
+      // create user in Firebase (auth + Firestore)
+      const user = await signUpEmail({
+        name: name.trim(),
+        email: email.trim(),
+        password,
+        country: country.trim() || undefined,
+        phone: phone.trim() || undefined,
+        gender: gender || undefined,
+        // we are no longer using Storage; this stays for compatibility
+        profileImageUri: profileImage ?? undefined,
+      });
+
+      // save avatar locally so Drawer / Avatar can use it
+      if (user && profileImage) {
+        try {
+          await AsyncStorage.setItem(
+            AVATAR_KEY_PREFIX + user.uid,
+            profileImage
+          );
+        } catch (e) {
+          console.log('Failed to cache avatar locally:', e);
+        }
+      }
+
+      // No explicit navigation needed: AuthProvider + Root will show VerifyEmailScreen
+    } catch (e: any) {
+      const msg = e?.code || e?.message || 'Sign up failed';
+      setErr(humanize(msg));
+    } finally {
+      setLoading(false);
+    }
   }
-}
+
   async function onGooglePress() {
     await promptAsync({ useProxy: true } as any);
   }
 
   async function onPickImage() {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        alert('Permission to access photos is required to upload a profile picture.');
+        alert(
+          'Permission to access photos is required to upload a profile picture.'
+        );
         return;
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
+        // New API is `mediaTypes: ImagePicker.MediaType.Images`, but the old one still works;
+        // you can swap this to remove the warning:
+        // mediaTypes: ImagePicker.MediaType.Images,
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
@@ -150,10 +178,18 @@ export default function SignupScreen() {
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={[styles.container,{backgroundColor:theme.colors.background}]} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          { backgroundColor: theme.colors.background },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.title,{color:theme.colors.text}]}>Sign up with your email or phone number</Text>
+          <Text style={[styles.title, { color: theme.colors.text }]}>
+            Sign up with your email or phone number
+          </Text>
         </View>
 
         {/* Profile image picker */}
@@ -164,7 +200,9 @@ export default function SignupScreen() {
             ) : (
               <View style={styles.avatarPlaceholder}>
                 <Text style={styles.avatarInitials}>
-                  {name.trim() ? name.trim().charAt(0).toUpperCase() : '?'}
+                  {name.trim()
+                    ? name.trim().charAt(0).toUpperCase()
+                    : '?'}
                 </Text>
               </View>
             )}
@@ -192,7 +230,10 @@ export default function SignupScreen() {
             }}
             placeholder="Name"
             placeholderTextColor={COLORS.GRAY}
-            style={[styles.input, name && name.trim().length < 2 && styles.inputInvalid]}
+            style={[
+              styles.input,
+              name && name.trim().length < 2 && styles.inputInvalid,
+            ]}
             returnKeyType="next"
           />
 
@@ -208,7 +249,10 @@ export default function SignupScreen() {
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
-            style={[styles.input, email && !EMAIL_RE.test(email.trim()) && styles.inputInvalid]}
+            style={[
+              styles.input,
+              email && !EMAIL_RE.test(email.trim()) && styles.inputInvalid,
+            ]}
             returnKeyType="next"
           />
 
@@ -232,7 +276,7 @@ export default function SignupScreen() {
             keyboardType="phone-pad"
           />
 
-           {/* Gender dropdown */}
+          {/* Gender dropdown */}
           <Pressable
             style={styles.select}
             onPress={() => setShowGenderPicker(true)}
@@ -269,17 +313,23 @@ export default function SignupScreen() {
               onSubmitEditing={onSubmit}
             />
             <Pressable onPress={() => setSecure((s) => !s)} style={styles.eyeBtn}>
-              <Text style={styles.eyeText}>{secure ? 'Show' : 'Hide'}</Text>
+              <Text style={styles.eyeText}>
+                {secure ? 'Show' : 'Hide'}
+              </Text>
             </Pressable>
           </View>
 
           {/* Terms */}
-          <Pressable onPress={() => setAgree((a) => !a)} style={styles.termsRow}>
+          <Pressable
+            onPress={() => setAgree((a) => !a)}
+            style={styles.termsRow}
+          >
             <Text style={[styles.checkbox, agree && styles.checkboxOn]}>
               {agree ? '✓' : ''}
             </Text>
             <Text style={styles.termsTxt}>
-              By signing up, you agree to the <Text style={styles.link}>Terms of service</Text> and{' '}
+              By signing up, you agree to the{' '}
+              <Text style={styles.link}>Terms of service</Text> and{' '}
               <Text style={styles.link}>Privacy policy</Text>.
             </Text>
           </Pressable>
@@ -294,7 +344,9 @@ export default function SignupScreen() {
               pressed && !loading && styles.ctaPressed,
             ]}
           >
-            <Text style={styles.ctaText}>{loading ? 'Creating…' : 'Sign Up'}</Text>
+            <Text style={styles.ctaText}>
+              {loading ? 'Creating…' : 'Sign Up'}
+            </Text>
           </Pressable>
 
           {/* Divider */}
@@ -308,7 +360,10 @@ export default function SignupScreen() {
           <Pressable
             onPress={onGooglePress}
             disabled={!request}
-            style={({ pressed }) => [{ alignItems: 'center' }, pressed && { opacity: 0.8 }]}
+            style={({ pressed }) => [
+              { alignItems: 'center' },
+              pressed && { opacity: 0.8 },
+            ]}
           >
             <Image
               source={require('../../../assets/icons/Gmail.png')}
@@ -325,6 +380,7 @@ export default function SignupScreen() {
             </Pressable>
           </View>
         </View>
+
         {/* Gender picker modal */}
         <Modal
           visible={showGenderPicker}
@@ -343,11 +399,16 @@ export default function SignupScreen() {
                     setShowGenderPicker(false);
                   }}
                 >
-                  <Text style={{ color: COLORS.DARK_GRAY, fontSize: 16 }}>{g}</Text>
+                  <Text style={{ color: COLORS.DARK_GRAY, fontSize: 16 }}>
+                    {g}
+                  </Text>
                 </TouchableOpacity>
               ))}
               <TouchableOpacity
-                style={[styles.modalItem, { borderTopWidth: 1, borderColor: BORDER }]}
+                style={[
+                  styles.modalItem,
+                  { borderTopWidth: 1, borderColor: BORDER },
+                ]}
                 onPress={() => setShowGenderPicker(false)}
               >
                 <Text style={{ color: COLORS.GRAY }}>Cancel</Text>
@@ -361,9 +422,12 @@ export default function SignupScreen() {
 }
 
 function humanize(codeOrMsg: string) {
-  if (codeOrMsg.includes('auth/email-already-in-use')) return 'Email already in use.';
-  if (codeOrMsg.includes('auth/invalid-email')) return 'Please enter a valid email address.';
-  if (codeOrMsg.includes('auth/weak-password')) return 'Use at least 6 characters.';
+  if (codeOrMsg.includes('auth/email-already-in-use'))
+    return 'Email already in use.';
+  if (codeOrMsg.includes('auth/invalid-email'))
+    return 'Please enter a valid email address.';
+  if (codeOrMsg.includes('auth/weak-password'))
+    return 'Use at least 6 characters.';
   return 'Sign up failed. Please try again.';
 }
 
@@ -375,10 +439,13 @@ const styles = StyleSheet.create({
     paddingTop: 84,
     paddingBottom: 24,
   },
-
   header: { marginBottom: 16 },
-  title: { color: COLORS.DARK_GRAY, fontSize: 22, lineHeight: 28, fontWeight: '700' },
-
+  title: {
+    color: COLORS.DARK_GRAY,
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: '700',
+  },
   avatarWrapper: {
     alignItems: 'center',
     marginBottom: 16,
@@ -415,7 +482,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
-
   errorBox: {
     borderWidth: 1,
     borderColor: '#FCA5A5',
@@ -425,9 +491,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   errorText: { color: '#991B1B', fontSize: 13 },
-
   form: { gap: 12 },
-
   input: {
     borderWidth: 1,
     borderColor: BORDER,
@@ -439,7 +503,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.WHITE,
   },
   inputInvalid: { borderColor: '#FCA5A5' },
-
   select: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -452,7 +515,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   selectTxt: { fontSize: 16 },
-
   passwordRow: { position: 'relative' },
   passwordInput: { paddingRight: 64 },
   eyeBtn: {
@@ -464,8 +526,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   eyeText: { color: COLORS.GREEN, fontWeight: '600' },
-
-  termsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 6 },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginTop: 6,
+  },
   checkbox: {
     width: 20,
     height: 20,
@@ -477,10 +543,12 @@ const styles = StyleSheet.create({
     color: '#fff',
     backgroundColor: '#fff',
   },
-  checkboxOn: { backgroundColor: COLORS.LIGHT_GREEN, borderColor: COLORS.LIGHT_GREEN },
+  checkboxOn: {
+    backgroundColor: COLORS.LIGHT_GREEN,
+    borderColor: COLORS.LIGHT_GREEN,
+  },
   termsTxt: { color: COLORS.GRAY, flex: 1, fontSize: 12, lineHeight: 18 },
   link: { color: COLORS.GREEN, fontWeight: '700' },
-
   cta: {
     marginTop: 8,
     height: 52,
@@ -492,12 +560,20 @@ const styles = StyleSheet.create({
   ctaDisabled: { opacity: 0.6 },
   ctaPressed: { opacity: 0.9 },
   ctaText: { color: COLORS.WHITE, fontSize: 16, fontWeight: '700' },
-
-  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 16 },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginVertical: 16,
+  },
   hr: { flex: 1, height: 1, backgroundColor: BORDER },
   or: { color: COLORS.GRAY, fontSize: 13 },
-
-  switchRow: { marginTop: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
+  switchRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   switchText: { color: COLORS.GRAY, fontSize: 14 },
   switchLink: { color: COLORS.GREEN, fontSize: 14, fontWeight: '700' },
   modalBackdrop: {
