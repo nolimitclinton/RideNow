@@ -1,10 +1,11 @@
 import { FlatList, StyleSheet, View, Text, Modal, Pressable, Alert } from "react-native";
 import React, { useState, useEffect } from "react";
 import { DeviceEventEmitter } from "react-native";
-import { collection, getDocs, query, orderBy, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, deleteDoc, doc, where } from "firebase/firestore";
 import { db } from "../../services/firebase";
 import HistoryItem from "./HistoryItem";
 import { useTheme } from "../../store/ThemeProvider";
+import { useAuth } from "../../store/AuthProvider";
 import { X, MapPin, Clock, User, Zap, Trash2 as Trash } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -17,6 +18,8 @@ interface ItemProps {
   category: string;
   originName?: string;
   destinationName?: string;
+  price?: number;
+  distanceKm?: number;
 }
 
 const HistoryRender = () => {
@@ -24,12 +27,24 @@ const HistoryRender = () => {
   const [loading, setLoading] = useState(true);
   const [selectedTrip, setSelectedTrip] = useState<ItemProps | null>(null);
   const { theme } = useTheme();
+  const { user } = useAuth();
 
   // fetch drives (extracted so it can be reused after deletion)
   const fetchCompletedDrives = async () => {
+    if (!user) {
+      setData([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
-      const q = query(collection(db, "completed_drives"), orderBy("completedAt", "desc"));
+      const q = query(
+        collection(db, "completed_drives"),
+        where("userId", "==", user.uid),         
+        orderBy("completedAt", "desc")
+      );
+
       const querySnapshot = await getDocs(q);
       const drives: ItemProps[] = [];
 
@@ -46,6 +61,8 @@ const HistoryRender = () => {
           category: "Completed",
           originName: driveData.originName,
           destinationName: driveData.destinationName,
+          price: driveData.price,           
+          distanceKm: driveData.distanceKm, 
         });
       });
 
@@ -67,8 +84,7 @@ const HistoryRender = () => {
     return () => {
       listener.remove();
     };
-  }, []);
-
+  }, [user?.uid]); 
   // Delete a trip with confirmation
   const deleteTrip = (id?: string) => {
     if (!id) return;
@@ -103,6 +119,7 @@ const HistoryRender = () => {
       originName={item.originName}
       destinationName={item.destinationName}
       onPress={() => setSelectedTrip(item)}
+      price={item.price} 
     />
   );
 
@@ -151,6 +168,7 @@ const HistoryRender = () => {
             </Text>
             <Pressable
               onPress={() => setSelectedTrip(null)}
+              hitSlop={20}
               style={{
                 width: 40,
                 height: 40,
@@ -253,28 +271,69 @@ const HistoryRender = () => {
                 </View>
               </View>
 
-              {/* Trip Info Card */}
-              <View style={{
-                backgroundColor: theme.colors.surface,
-                borderRadius: 16,
-                padding: 16,
-                gap: 12,
-              }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: theme.colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+             {/* Trip Info Card */}
+              <View
+                style={{
+                  backgroundColor: theme.colors.surface,
+                  borderRadius: 16,
+                  padding: 16,
+                  gap: 12,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "600",
+                    color: theme.colors.textSecondary,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.5,
+                  }}
+                >
                   Trip Info
                 </Text>
-                
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+
+                {/* Date & Time */}
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
                   <Clock size={20} color={theme.colors.primary} strokeWidth={2} />
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 13, color: theme.colors.textSecondary }}>Date & Time</Text>
-                    <Text style={{ fontSize: 15, fontWeight: '600', color: theme.colors.text, marginTop: 4 }}>
+                    <Text style={{ fontSize: 13, color: theme.colors.textSecondary }}>
+                      Date & Time
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontWeight: "600",
+                        color: theme.colors.text,
+                        marginTop: 4,
+                      }}
+                    >
                       {selectedTrip.date} at {selectedTrip.time}
                     </Text>
                   </View>
                 </View>
-              </View>
 
+                {/* Fare */}
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                  <Zap size={20} color={theme.colors.primary} strokeWidth={2} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13, color: theme.colors.textSecondary }}>
+                      Fare
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontWeight: "600",
+                        color: theme.colors.text,
+                        marginTop: 4,
+                      }}
+                    >
+                      {selectedTrip.price != null
+                        ? `₦${selectedTrip.price.toLocaleString()}`
+                        : "Not available"}
+                    </Text>
+                  </View>
+                </View>
+              </View>
               {/* Delete button */}
               <View style={{ paddingHorizontal: 0, paddingTop: 8 }}>
                 <Pressable

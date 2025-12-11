@@ -7,7 +7,7 @@ import {
   ScrollView,
   Keyboard,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,7 +16,13 @@ import LongButton from "../components/buttons/LongButton";
 import { useTheme } from "../store/ThemeProvider";
 import * as Location from "expo-location";
 
-const GOOGLE_API_KEY = "AIzaSyC3B1BNTq8re47QL2ltM5zdZYujKIX4tKs"; // Replace with your actual API key
+const GOOGLE_API_KEY = "AIzaSyC3B1BNTq8re47QL2ltM5zdZYujKIX4tKs";
+
+type PlaceSelection = {
+  name: string;
+  latitude: number;
+  longitude: number;
+};
 
 const LocationDisplayCard: React.FC<{
   label: string;
@@ -31,20 +37,37 @@ const LocationDisplayCard: React.FC<{
   return (
     <TouchableOpacity
       onPress={onPress}
-      style={[styles.locationCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+      style={[
+        styles.locationCard,
+        { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+      ]}
     >
-      <Ionicons name={iconName} size={20} color={theme.colors.primary} style={styles.cardIcon} />
+      <Ionicons
+        name={iconName}
+        size={20}
+        color={theme.colors.primary}
+        style={styles.cardIcon}
+      />
       <View style={styles.cardTextContainer}>
-        <Text style={[styles.cardLabel, { color: theme.colors.textSecondary }]}>{label}</Text>
-        <Text numberOfLines={1} style={[styles.cardLocationName, { color: theme.colors.text }]}>
+        <Text style={[styles.cardLabel, { color: theme.colors.textSecondary }]}>
+          {label}
+        </Text>
+        <Text
+          numberOfLines={1}
+          style={[styles.cardLocationName, { color: theme.colors.text }]}
+        >
           {locationName}
         </Text>
       </View>
-      {onClear && locationName && (
+      {onClear && locationName ? (
         <TouchableOpacity onPress={onClear} style={styles.clearButton}>
-          <Ionicons name="close-circle" size={20} color={theme.colors.textSecondary} />
+          <Ionicons
+            name="close-circle"
+            size={20}
+            color={theme.colors.textSecondary}
+          />
         </TouchableOpacity>
-      )}
+      ) : null}
     </TouchableOpacity>
   );
 };
@@ -61,14 +84,20 @@ export default function AddressInputScreen() {
   const [originResults, setOriginResults] = useState<any[]>([]);
   const [destinationResults, setDestinationResults] = useState<any[]>([]);
 
-  const [selectedOrigin, setSelectedOrigin] = useState<{ name: string; latitude: number; longitude: number } | null>(null);
-  const [selectedDestination, setSelectedDestination] = useState<{ name: string; latitude: number; longitude: number } | null>(null);
+  const [selectedOrigin, setSelectedOrigin] = useState<PlaceSelection | null>(null);
+  const [selectedDestination, setSelectedDestination] = useState<PlaceSelection | null>(
+    null
+  );
 
-  const [activeSearchInput, setActiveSearchInput] = useState<"origin" | "destination" | null>(null);
+  const [activeSearchInput, setActiveSearchInput] = useState<
+    "origin" | "destination" | null
+  >(null);
   const [isFetchingLocation, setIsFetchingLocation] = useState(true);
 
+  // hydrate from params + detect current origin
   useEffect(() => {
     const { initialOrigin, initialDestination } = route.params || {};
+
     if (initialOrigin) {
       setSelectedOrigin(initialOrigin);
       setOriginQuery(initialOrigin.name);
@@ -84,17 +113,40 @@ export default function AddressInputScreen() {
         try {
           const { status } = await Location.requestForegroundPermissionsAsync();
           if (status !== "granted") {
-            Alert.alert("Permission denied", "Location access is required to set your current location.");
+            Alert.alert(
+              "Permission denied",
+              "Location access is required to set your current location."
+            );
             return;
           }
 
           const cachedLocation = await Location.getLastKnownPositionAsync();
-          const coords = cachedLocation?.coords ?? (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })).coords;
+          const coords =
+            cachedLocation?.coords ??
+            (await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Balanced,
+            })).coords;
 
           if (coords) {
-            const address = await Location.reverseGeocodeAsync({ latitude: coords.latitude, longitude: coords.longitude });
-            const placeName = address.length > 0 ? address[0].name || address[0].street || address[0].city || "Current Location" : "Current Location";
-            setSelectedOrigin({ latitude: coords.latitude, longitude: coords.longitude, name: placeName });
+            const address = await Location.reverseGeocodeAsync({
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+            });
+            const placeName =
+              address.length > 0
+                ? address[0].name ||
+                  address[0].street ||
+                  address[0].city ||
+                  "Current Location"
+                : "Current Location";
+
+            const origin: PlaceSelection = {
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+              name: placeName,
+            };
+
+            setSelectedOrigin(origin);
             setOriginQuery(placeName);
           }
         } catch (error) {
@@ -110,13 +162,18 @@ export default function AddressInputScreen() {
     }
   }, [route.params]);
 
-  const fetchPlaces = async (query: string, setResults: React.Dispatch<React.SetStateAction<any[]>>) => {
+  const fetchPlaces = async (
+    query: string,
+    setResults: React.Dispatch<React.SetStateAction<any[]>>
+  ) => {
     if (!query) {
       setResults([]);
       return;
     }
     try {
-      const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?key=${GOOGLE_API_KEY}&input=${encodeURIComponent(query)}&types=establishment`;
+      const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?key=${GOOGLE_API_KEY}&input=${encodeURIComponent(
+        query
+      )}&types=geocode`;
       const res = await fetch(url);
       const data = await res.json();
       if (data.status === "OK") {
@@ -137,10 +194,22 @@ export default function AddressInputScreen() {
     setResults: React.Dispatch<React.SetStateAction<any[]>>
   ) => {
     setQuery(text);
-    fetchPlaces(text, setResults); // immediate fetch, no debounce
+
+    // Clear existing selection when user edits
+    if (type === "origin") {
+      setSelectedOrigin(null);
+    } else {
+      setSelectedDestination(null);
+    }
+
+    fetchPlaces(text, setResults);
   };
 
-  const selectPlace = async (placeId: string, description: string, type: "origin" | "destination") => {
+  const selectPlace = async (
+    placeId: string,
+    description: string,
+    type: "origin" | "destination"
+  ) => {
     Keyboard.dismiss();
     try {
       const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&key=${GOOGLE_API_KEY}`;
@@ -149,7 +218,11 @@ export default function AddressInputScreen() {
 
       if (detailsData.status === "OK") {
         const coords = detailsData.result.geometry.location;
-        const newLocation = { latitude: coords.lat, longitude: coords.lng, name: description };
+        const newLocation: PlaceSelection = {
+          latitude: coords.lat,
+          longitude: coords.lng,
+          name: description,
+        };
 
         if (type === "origin") {
           setSelectedOrigin(newLocation);
@@ -178,98 +251,150 @@ export default function AddressInputScreen() {
       return;
     }
 
-    (navigation as any).navigate('MainTabs', {
-      screen: 'Home',
+    Keyboard.dismiss();
+
+    (navigation as any).navigate("MainTabs", {
+      screen: "Home",
       params: { selectedOrigin, selectedDestination },
     });
   };
 
+  const showOriginAsCard = selectedOrigin && activeSearchInput !== "origin";
+  const showDestinationAsCard =
+    selectedDestination && activeSearchInput !== "destination";
+
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
           <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Set Your Address</Text>
       </View>
 
+      {/* Inputs */}
       <View style={styles.addressInputsContainer}>
         {isFetchingLocation ? (
           <View style={styles.loadingLocationContainer}>
             <ActivityIndicator size="small" color={theme.colors.primary} />
-            <Text style={styles.loadingLocationText}>Detecting current location...</Text>
+            <Text style={styles.loadingLocationText}>
+              Detecting current location...
+            </Text>
           </View>
-        ) : selectedOrigin && activeSearchInput !== "origin" ? (
-          <LocationDisplayCard
-            label="Pick-up Location"
-            locationName={selectedOrigin.name}
-            iconName="location"
-            onPress={() => {
-              setActiveSearchInput("origin");
-              setOriginQuery(selectedOrigin.name);
-            }}
-            onClear={() => {
-              setSelectedOrigin(null);
-              setOriginQuery("");
-              setActiveSearchInput("origin");
-            }}
-          />
         ) : (
-          <SearchBar
-            placeholder="Pick-up Location (Current Location)"
-            value={originQuery}
-            onChangeText={(text) => handleSearchChange(text, "origin", setOriginQuery, setOriginResults)}
-            onFocus={() => setActiveSearchInput("origin")}
-            style={styles.searchBar}
-          />
-        )}
+          <>
+            {/* Pickup – card or search, same pattern */}
+            {showOriginAsCard ? (
+              <LocationDisplayCard
+                label="Pick-up Location"
+                locationName={selectedOrigin!.name}
+                iconName="location"
+                onPress={() => {
+                  setActiveSearchInput("origin");
+                  setOriginQuery(selectedOrigin!.name);
+                }}
+                onClear={() => {
+                  setSelectedOrigin(null);
+                  setOriginQuery("");
+                  setActiveSearchInput("origin");
+                }}
+              />
+            ) : (
+              <SearchBar
+                placeholder="Pick-up Location (Current Location)"
+                value={originQuery}
+                onChangeText={(text) =>
+                  handleSearchChange(
+                    text,
+                    "origin",
+                    setOriginQuery,
+                    setOriginResults
+                  )
+                }
+                onFocus={() => setActiveSearchInput("origin")}
+                style={styles.searchBar}
+              />
+            )}
 
-        {selectedDestination && activeSearchInput !== "destination" ? (
-          <LocationDisplayCard
-            label="Destination"
-            locationName={selectedDestination.name}
-            iconName="pin"
-            onPress={() => {
-              setActiveSearchInput("destination");
-              setDestinationQuery(selectedDestination.name);
-            }}
-            onClear={() => {
-              setSelectedDestination(null);
-              setDestinationQuery("");
-              setActiveSearchInput("destination");
-            }}
-          />
-        ) : (
-          <SearchBar
-            placeholder="Enter destination or drop-off point"
-            value={destinationQuery}
-            onChangeText={(text) => handleSearchChange(text, "destination", setDestinationQuery, setDestinationResults)}
-            onFocus={() => setActiveSearchInput("destination")}
-            style={styles.searchBar}
-          />
+            {/* Destination – now identical behavior/UI */}
+            {showDestinationAsCard ? (
+              <LocationDisplayCard
+                label="Destination"
+                locationName={selectedDestination!.name}
+                iconName="pin"
+                onPress={() => {
+                  setActiveSearchInput("destination");
+                  setDestinationQuery(selectedDestination!.name);
+                }}
+                onClear={() => {
+                  setSelectedDestination(null);
+                  setDestinationQuery("");
+                  setActiveSearchInput("destination");
+                }}
+              />
+            ) : (
+              <SearchBar
+                placeholder="Enter destination or drop-off point"
+                value={destinationQuery}
+                onChangeText={(text) =>
+                  handleSearchChange(
+                    text,
+                    "destination",
+                    setDestinationQuery,
+                    setDestinationResults
+                  )
+                }
+                onFocus={() => setActiveSearchInput("destination")}
+                style={styles.searchBar}
+              />
+            )}
+          </>
         )}
       </View>
 
+      {/* Suggestions */}
       {(activeSearchInput === "origin" && originResults.length > 0) ||
       (activeSearchInput === "destination" && destinationResults.length > 0) ? (
         <ScrollView style={styles.suggestionsContainer}>
           <Text style={styles.suggestionsTitle}>Suggestions</Text>
-          {(activeSearchInput === "origin" ? originResults : destinationResults).map((item) => (
-            <TouchableOpacity
-              key={item.place_id}
-              onPress={() => selectPlace(item.place_id, item.description, activeSearchInput || "origin")}
-              style={styles.resultItem}
-            >
-              <Ionicons name="time-outline" size={20} color={theme.colors.textSecondary} style={styles.resultIcon} />
-              <View style={styles.resultTextContainer}>
-                <Text style={styles.resultPrimaryText}>{item.structured_formatting.main_text}</Text>
-                <Text style={styles.resultSecondaryText}>{item.structured_formatting.secondary_text}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
+          {(activeSearchInput === "origin" ? originResults : destinationResults).map(
+            (item) => (
+              <TouchableOpacity
+                key={item.place_id}
+                onPress={() =>
+                  selectPlace(
+                    item.place_id,
+                    item.description,
+                    activeSearchInput || "origin"
+                  )
+                }
+                style={styles.resultItem}
+              >
+                <Ionicons
+                  name="time-outline"
+                  size={20}
+                  color={theme.colors.textSecondary}
+                  style={styles.resultIcon}
+                />
+                <View style={styles.resultTextContainer}>
+                  <Text style={styles.resultPrimaryText}>
+                    {item.structured_formatting.main_text}
+                  </Text>
+                  <Text style={styles.resultSecondaryText}>
+                    {item.structured_formatting.secondary_text}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )
+          )}
         </ScrollView>
       ) : null}
 
+      {/* Footer */}
       <View style={styles.footer}>
         <LongButton text="Confirm Location" onPress={handleConfirmLocation} />
       </View>
@@ -279,27 +404,82 @@ export default function AddressInputScreen() {
 
 function createStyles(theme: any) {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: theme.colors.background, paddingTop: 40 },
-    header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 15, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+      paddingTop: 40,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 15,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+    },
     backButton: { padding: 5, marginRight: 10 },
-    headerTitle: { fontSize: 20, fontWeight: "bold", color: theme.colors.text },
-    addressInputsContainer: { padding: 15, backgroundColor: theme.colors.background },
+    headerTitle: {
+      fontSize: 20,
+      fontWeight: "bold",
+      color: theme.colors.text,
+    },
+    addressInputsContainer: {
+      padding: 15,
+      backgroundColor: theme.colors.background,
+    },
     searchBar: { marginBottom: 10 },
-    loadingLocationContainer: { flexDirection: 'row', alignItems: 'center', padding: 15, backgroundColor: theme.colors.surface, borderRadius: 8, marginBottom: 10 },
-    loadingLocationText: { marginLeft: 10, color: theme.colors.textSecondary },
-    locationCard: { flexDirection: "row", alignItems: "center", padding: 15, borderRadius: 8, marginBottom: 10, borderWidth: 1, borderColor: theme.colors.border },
+    loadingLocationContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: 15,
+      backgroundColor: theme.colors.surface,
+      borderRadius: 8,
+      marginBottom: 10,
+    },
+    loadingLocationText: {
+      marginLeft: 10,
+      color: theme.colors.textSecondary,
+    },
+    locationCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: 15,
+      borderRadius: 8,
+      marginBottom: 10,
+      borderWidth: 1,
+    },
     cardIcon: { marginRight: 10 },
     cardTextContainer: { flex: 1 },
-    cardLabel: { fontSize: 12, color: theme.colors.textSecondary },
-    cardLocationName: { fontSize: 16, fontWeight: "500", color: theme.colors.text },
+    cardLabel: { fontSize: 12 },
+    cardLocationName: { fontSize: 16, fontWeight: "500" },
     clearButton: { padding: 5, marginLeft: 10 },
     suggestionsContainer: { flex: 1, marginHorizontal: 15 },
-    suggestionsTitle: { fontSize: 16, fontWeight: "bold", color: theme.colors.text, marginBottom: 10, marginTop: 5 },
-    resultItem: { flexDirection: "row", alignItems: "center", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
+    suggestionsTitle: {
+      fontSize: 16,
+      fontWeight: "bold",
+      color: theme.colors.text,
+      marginBottom: 10,
+      marginTop: 5,
+    },
+    resultItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+    },
     resultIcon: { marginRight: 10 },
     resultTextContainer: { flex: 1 },
     resultPrimaryText: { fontSize: 16, color: theme.colors.text },
-    resultSecondaryText: { fontSize: 12, color: theme.colors.textSecondary },
-    footer: { padding: 15, backgroundColor: theme.colors.background, borderTopWidth: 1, borderTopColor: theme.colors.border },
+    resultSecondaryText: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+    },
+    footer: {
+      padding: 15,
+      backgroundColor: theme.colors.background,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.border,
+    },
   });
 }

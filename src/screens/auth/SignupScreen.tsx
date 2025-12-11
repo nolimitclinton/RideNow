@@ -1,3 +1,4 @@
+// src/screens/auth/SignupScreen.tsx
 import React, { useMemo, useState, useEffect } from 'react';
 import {
   View,
@@ -10,7 +11,6 @@ import {
   ScrollView,
   Modal,
   Image,
-  TouchableOpacity,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS } from '../../constants/colors';
@@ -21,15 +21,12 @@ import { makeRedirectUri } from 'expo-auth-session';
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { auth, db } from '../../services/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import * as ImagePicker from 'expo-image-picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../../store/ThemeProvider';
 
 WebBrowser.maybeCompleteAuthSession();
 
 const BORDER = '#E6E6E6';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const AVATAR_KEY_PREFIX = 'avatar:'; // same prefix used in Drawer / Avatar
 
 export default function SignupScreen() {
   const nav = useNavigation();
@@ -38,8 +35,11 @@ export default function SignupScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
 
-  const [country, setCountry] = useState('');
-  const [phone, setPhone] = useState('');
+  // Country is fixed as Nigeria
+  const country = 'Nigeria';
+
+  // Only the 10-digit local part after +234
+  const [phoneLocal, setPhoneLocal] = useState('');
   const [gender, setGender] = useState<'Male' | 'Female' | 'Other' | ''>('');
 
   const [password, setPassword] = useState('');
@@ -48,8 +48,6 @@ export default function SignupScreen() {
   const [err, setErr] = useState<string | null>(null);
   const [agree, setAgree] = useState(true);
   const [showGenderPicker, setShowGenderPicker] = useState(false);
-
-  const [profileImage, setProfileImage] = useState<string | null>(null);
 
   // Google auth setup
   const redirectUri = makeRedirectUri();
@@ -99,39 +97,32 @@ export default function SignupScreen() {
     const okName = name.trim().length >= 2;
     const okEmail = EMAIL_RE.test(email.trim());
     const okPass = password.length >= 6;
-    return okName && okEmail && okPass && agree && !loading;
-  }, [name, email, password, agree, loading]);
+
+    // Phone is optional, but if user types anything, it must be 10 digits
+    const phoneIsValid =
+      phoneLocal.length === 0 || phoneLocal.length === 10;
+
+    return okName && okEmail && okPass && phoneIsValid && agree && !loading;
+  }, [name, email, password, phoneLocal, agree, loading]);
 
   async function onSubmit() {
     if (!canSubmit) return;
     setErr(null);
     setLoading(true);
     try {
-      // create user in Firebase (auth + Firestore)
-      const user = await signUpEmail({
+      const fullPhone =
+        phoneLocal.trim().length === 10 ? `+234${phoneLocal.trim()}` : undefined;
+
+      await signUpEmail({
         name: name.trim(),
         email: email.trim(),
         password,
-        country: country.trim() || undefined,
-        phone: phone.trim() || undefined,
+        country, // always 'Nigeria'
+        phone: fullPhone,
         gender: gender || undefined,
-        // we are no longer using Storage; this stays for compatibility
-        profileImageUri: profileImage ?? undefined,
       });
 
-      // save avatar locally so Drawer / Avatar can use it
-      if (user && profileImage) {
-        try {
-          await AsyncStorage.setItem(
-            AVATAR_KEY_PREFIX + user.uid,
-            profileImage
-          );
-        } catch (e) {
-          console.log('Failed to cache avatar locally:', e);
-        }
-      }
-
-      // No explicit navigation needed: AuthProvider + Root will show VerifyEmailScreen
+      // AuthProvider + RootNavigator will handle showing VerifyEmailScreen
     } catch (e: any) {
       const msg = e?.code || e?.message || 'Sign up failed';
       setErr(humanize(msg));
@@ -144,34 +135,15 @@ export default function SignupScreen() {
     await promptAsync({ useProxy: true } as any);
   }
 
-  async function onPickImage() {
-    try {
-      const { status } =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        alert(
-          'Permission to access photos is required to upload a profile picture.'
-        );
-        return;
-      }
+  // Only allow digits and max length 10 for local part
+  const handlePhoneChange = (text: string) => {
+    const digitsOnly = text.replace(/\D/g, '');
+    setPhoneLocal(digitsOnly.slice(0, 10));
+    if (err) setErr(null);
+  };
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        // New API is `mediaTypes: ImagePicker.MediaType.Images`, but the old one still works;
-        // you can swap this to remove the warning:
-        // mediaTypes: ImagePicker.MediaType.Images,
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets?.length) {
-        setProfileImage(result.assets[0].uri);
-      }
-    } catch (e) {
-      console.log('Image picker error', e);
-    }
-  }
+  const phoneHasError =
+    phoneLocal.length > 0 && phoneLocal.length !== 10;
 
   return (
     <KeyboardAvoidingView
@@ -190,26 +162,6 @@ export default function SignupScreen() {
           <Text style={[styles.title, { color: theme.colors.text }]}>
             Sign up with your email or phone number
           </Text>
-        </View>
-
-        {/* Profile image picker */}
-        <View style={styles.avatarWrapper}>
-          <Pressable onPress={onPickImage} style={styles.avatarButton}>
-            {profileImage ? (
-              <Image source={{ uri: profileImage }} style={styles.avatarImage} />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarInitials}>
-                  {name.trim()
-                    ? name.trim().charAt(0).toUpperCase()
-                    : '?'}
-                </Text>
-              </View>
-            )}
-          </Pressable>
-          <Pressable onPress={onPickImage}>
-            <Text style={styles.changePhotoText}>Add profile photo</Text>
-          </Pressable>
         </View>
 
         {/* Error */}
@@ -256,25 +208,36 @@ export default function SignupScreen() {
             returnKeyType="next"
           />
 
-          {/* Country */}
-          <TextInput
-            value={country}
-            onChangeText={setCountry}
-            placeholder="Country"
-            placeholderTextColor={COLORS.GRAY}
-            style={styles.input}
-            returnKeyType="next"
-          />
+          {/* Country – fixed Nigeria, not editable */}
+          <View style={styles.readonlyField}>
+            <Text style={styles.readonlyLabel}>Country</Text>
+            <Text style={styles.readonlyValue}>Nigeria</Text>
+          </View>
 
-          {/* Phone */}
-          <TextInput
-            value={phone}
-            onChangeText={setPhone}
-            style={styles.input}
-            placeholder="Phone number"
-            placeholderTextColor={COLORS.GRAY}
-            keyboardType="phone-pad"
-          />
+          {/* Phone with +234 prefix */}
+          <View
+            style={[
+              styles.phoneRow,
+              phoneHasError && styles.inputInvalid,
+            ]}
+          >
+            <View style={styles.phonePrefixContainer}>
+              <Text style={styles.phonePrefixText}>+234</Text>
+            </View>
+            <TextInput
+              value={phoneLocal}
+              onChangeText={handlePhoneChange}
+              style={styles.phoneInput}
+              placeholder="10-digit phone number"
+              placeholderTextColor={COLORS.GRAY}
+              keyboardType="phone-pad"
+            />
+          </View>
+          {phoneHasError && (
+            <Text style={styles.phoneErrorText}>
+              Please enter exactly 10 digits after +234.
+            </Text>
+          )}
 
           {/* Gender dropdown */}
           <Pressable
@@ -391,7 +354,7 @@ export default function SignupScreen() {
           <View style={styles.modalBackdrop}>
             <View style={styles.modalCard}>
               {(['Male', 'Female', 'Other'] as const).map((g) => (
-                <TouchableOpacity
+                <Pressable
                   key={g}
                   style={styles.modalItem}
                   onPress={() => {
@@ -402,9 +365,9 @@ export default function SignupScreen() {
                   <Text style={{ color: COLORS.DARK_GRAY, fontSize: 16 }}>
                     {g}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               ))}
-              <TouchableOpacity
+              <Pressable
                 style={[
                   styles.modalItem,
                   { borderTopWidth: 1, borderColor: BORDER },
@@ -412,7 +375,7 @@ export default function SignupScreen() {
                 onPress={() => setShowGenderPicker(false)}
               >
                 <Text style={{ color: COLORS.GRAY }}>Cancel</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
         </Modal>
@@ -446,42 +409,7 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     fontWeight: '700',
   },
-  avatarWrapper: {
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  avatarButton: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: COLORS.LIGHT_GREEN,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F3F4F6',
-  },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
-  },
-  avatarPlaceholder: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitials: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: COLORS.DARK_GRAY,
-  },
-  changePhotoText: {
-    marginTop: 8,
-    color: COLORS.GREEN,
-    fontWeight: '600',
-    fontSize: 14,
-  },
+
   errorBox: {
     borderWidth: 1,
     borderColor: '#FCA5A5',
@@ -491,7 +419,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   errorText: { color: '#991B1B', fontSize: 13 },
+
   form: { gap: 12 },
+
   input: {
     borderWidth: 1,
     borderColor: BORDER,
@@ -503,6 +433,60 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.WHITE,
   },
   inputInvalid: { borderColor: '#FCA5A5' },
+
+  // fake-readonly “input” for Nigeria
+  readonlyField: {
+    borderWidth: 1,
+    borderColor: BORDER,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: '#F9FAFB',
+  },
+  readonlyLabel: {
+    fontSize: 12,
+    color: COLORS.GRAY,
+    marginBottom: 2,
+  },
+  readonlyValue: {
+    fontSize: 16,
+    color: COLORS.DARK_GRAY,
+    fontWeight: '600',
+  },
+
+  // phone row with +234 prefix
+  phoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: BORDER,
+    borderRadius: 12,
+    backgroundColor: COLORS.WHITE,
+  },
+  phonePrefixContainer: {
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    borderRightWidth: 1,
+    borderRightColor: BORDER,
+  },
+  phonePrefixText: {
+    fontSize: 16,
+    color: COLORS.DARK_GRAY,
+    fontWeight: '600',
+  },
+  phoneInput: {
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: COLORS.DARK_GRAY,
+  },
+  phoneErrorText: {
+    fontSize: 12,
+    color: '#b91c1c',
+    marginTop: 4,
+  },
+
   select: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -515,6 +499,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   selectTxt: { fontSize: 16 },
+
   passwordRow: { position: 'relative' },
   passwordInput: { paddingRight: 64 },
   eyeBtn: {
@@ -526,6 +511,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   eyeText: { color: COLORS.GREEN, fontWeight: '600' },
+
   termsRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -549,6 +535,7 @@ const styles = StyleSheet.create({
   },
   termsTxt: { color: COLORS.GRAY, flex: 1, fontSize: 12, lineHeight: 18 },
   link: { color: COLORS.GREEN, fontWeight: '700' },
+
   cta: {
     marginTop: 8,
     height: 52,
@@ -560,6 +547,7 @@ const styles = StyleSheet.create({
   ctaDisabled: { opacity: 0.6 },
   ctaPressed: { opacity: 0.9 },
   ctaText: { color: COLORS.WHITE, fontSize: 16, fontWeight: '700' },
+
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -568,6 +556,7 @@ const styles = StyleSheet.create({
   },
   hr: { flex: 1, height: 1, backgroundColor: BORDER },
   or: { color: COLORS.GRAY, fontSize: 13 },
+
   switchRow: {
     marginTop: 8,
     flexDirection: 'row',
@@ -576,6 +565,7 @@ const styles = StyleSheet.create({
   },
   switchText: { color: COLORS.GRAY, fontSize: 14 },
   switchLink: { color: COLORS.GREEN, fontSize: 14, fontWeight: '700' },
+
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.35)',

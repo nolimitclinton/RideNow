@@ -9,10 +9,20 @@ export interface HistoryItemProp {
   time: string;
   originName?: string;
   destinationName?: string;
+  price?: number; 
   onPress?: () => void;
 }
 
-const HistoryItem = ({ name, carName, date, time, originName, destinationName, onPress }: HistoryItemProp) => {
+const HistoryItem = ({
+  name,
+  carName,
+  date,
+  time,
+  originName,
+  destinationName,
+  price,
+  onPress,
+}: HistoryItemProp) => {
   const { theme } = useTheme();
 
   return (
@@ -21,10 +31,10 @@ const HistoryItem = ({ name, carName, date, time, originName, destinationName, o
       style={({ pressed }) => [
         styles(theme).container,
         { backgroundColor: theme.colors.surface },
-        pressed && { opacity: 0.7 }
+        pressed && { opacity: 0.7 },
       ]}
     >
-      {/* Left side: Profile + details */}
+      {/* Left side: Driver info */}
       <View style={styles(theme).leftBlock}>
         <View style={styles(theme).avatar}>
           <Text style={styles(theme).avatarText}>
@@ -38,8 +48,13 @@ const HistoryItem = ({ name, carName, date, time, originName, destinationName, o
         </View>
       </View>
 
-      {/* Right side: Time + date */}
+      {/* Right side: Price + time/date */}
       <View style={styles(theme).rightBlock}>
+        {price != null && (
+          <Text style={styles(theme).priceText}>
+            ₦{price.toLocaleString()}
+          </Text>
+        )}
         <Text style={styles(theme).timeText}>{time}</Text>
         <Text style={styles(theme).dateText}>{date}</Text>
       </View>
@@ -99,7 +114,12 @@ const styles = (theme: any) =>
     rightBlock: {
       alignItems: "flex-end",
     },
-
+    priceText: {
+      fontSize: 15,
+      fontWeight: "700",
+      color: theme.colors.primary,
+      marginBottom: 4,
+    },
     timeText: {
       fontSize: 14,
       fontWeight: "500",

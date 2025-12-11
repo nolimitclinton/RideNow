@@ -1,23 +1,39 @@
 import React from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { ScrollView, StyleSheet } from "react-native";
 import Avatar from "../components/profile/Avatar";
 import Details from "../components/profile/Details";
-import Header from "../components/ui/Header";
 import { useAuth } from "../store/AuthProvider";
 import { useTheme } from "../store/ThemeProvider";
-import { ScrollView } from "react-native-gesture-handler";
-
 
 export default function ProfileScreen() {
   const { user } = useAuth();
   const { theme } = useTheme();
+
   return (
-    <SafeAreaView style={[{ padding: 16, flex: 1 }, { backgroundColor: theme.colors.background }]}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-      {/* <Header title="Profile" /> */}
-      <Avatar/>
-      <Details/>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      edges={["top"]} //  only respect top inset; bottom is handled by the tab bar
+    >
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+      >
+        {/* <Header title="Profile" /> */}
+        <Avatar />
+        <Details />
       </ScrollView>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  content: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 24, 
+  },
+});

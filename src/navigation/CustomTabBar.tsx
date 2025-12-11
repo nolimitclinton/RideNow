@@ -24,8 +24,8 @@ const icons: IconMap = {
     label: "History",
   },
   Profile: {
-    active: require("../../assets/icons/profile-active.png"),
-    inactive: require("../../assets/icons/profile-inactive.png"),
+    active: require("../../assets/icons/profile-inactive.png"),
+    inactive: require("../../assets/icons/profile-active.png"),
     label: "Profile",
   },
 };
@@ -41,7 +41,7 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
         {
           paddingBottom: insets.bottom,
           height: 65 + insets.bottom,
-          backgroundColor: theme.colors.background,
+          backgroundColor: theme.colors.surface,
           borderTopColor: theme.colors.border,
         },
       ]}
@@ -49,7 +49,6 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
       {state.routes.map((route, index) => {
         const focused = state.index === index;
         const icon = icons[route.name];
-
         if (!icon) return null;
 
         const onPress = () => {
@@ -73,20 +72,31 @@ export default function CustomTabBar({ state, navigation }: BottomTabBarProps) {
               pressed && { opacity: 0.6 },
             ]}
           >
-            <Image
-              source={focused ? icon.active : icon.inactive}
-              style={styles.icon}
-              resizeMode="contain"
-            />
-            <Text style={[styles.label, focused && [styles.activeLabel, { color: theme.colors.primary }], { color: theme.colors.textSecondary }]}>
-              {icon.label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
+                <Image
+                  source={focused ? icon.active : icon.inactive}
+                  style={styles.icon}
+                  resizeMode="contain"
+                />
+                <Text
+                  style={[
+                    styles.label,
+                    focused && styles.activeLabel,
+                    {
+                      // ✅ this is now the only color logic
+                      color: focused
+                        ? theme.colors.primary
+                        : theme.colors.textSecondary,
+                    },
+                  ]}
+                >
+                  {icon.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      );
+    }
 
 const styles = StyleSheet.create({
   container: {
