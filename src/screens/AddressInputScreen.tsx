@@ -173,7 +173,7 @@ export default function AddressInputScreen() {
     try {
       const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?key=${GOOGLE_API_KEY}&input=${encodeURIComponent(
         query
-      )}&types=geocode`;
+      )}&types=establishment`;
       const res = await fetch(url);
       const data = await res.json();
       if (data.status === "OK") {
