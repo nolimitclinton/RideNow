@@ -12,6 +12,7 @@ export interface Theme {
     error: string;
     warning: string;
     card: string;
+    overlay: string;
   };
 }
 

@@ -13,7 +13,8 @@ export const LIGHT_THEME: Theme = {
     success: '#008955',
     error: '#E63946',
     warning: '#F77F00',
-    card: "#FFFFFF"
+    card: "#FFFFFF",
+    overlay: 'rgba(255,255,255,0.6)',
     
   },
 };
@@ -31,7 +32,8 @@ export const DARK_THEME: Theme = {
     success: '#08B783',
     error: '#FF6B6B',
     warning: '#FFB400',
-    card: "#383737ff"
+    card: "#383737ff",
+    overlay: 'rgba(0,0,0,0.6)',
 
   },
 };
