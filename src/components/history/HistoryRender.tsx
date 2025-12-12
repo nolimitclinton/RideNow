@@ -20,6 +20,8 @@ interface ItemProps {
   destinationName?: string;
   price?: number;
   distanceKm?: number;
+  ratingScore?: number | null;
+  ratingComment?: string | null;
 }
 
 const HistoryRender = () => {
@@ -62,7 +64,9 @@ const HistoryRender = () => {
           originName: driveData.originName,
           destinationName: driveData.destinationName,
           price: driveData.price,           
-          distanceKm: driveData.distanceKm, 
+          distanceKm: driveData.distanceKm,
+          ratingScore: driveData.ratingScore ?? null,
+          ratingComment: driveData.ratingComment ?? null, 
         });
       });
 
@@ -112,7 +116,7 @@ const HistoryRender = () => {
   };
   const renderItem = ({ item }: { item: ItemProps }) => (
     <HistoryItem 
-      time={item.time} 
+      //time={item.time} 
       date={item.date} 
       carName={item.car} 
       name={item.name}
@@ -334,6 +338,22 @@ const HistoryRender = () => {
                   </View>
                 </View>
               </View>
+               {/* Rating card */}
+               <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                  <User size={20} color={theme.colors.primary} strokeWidth={2} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13, color: theme.colors.textSecondary }}>Rating</Text>
+                    <Text style={{ fontSize: 15, fontWeight: "600", color: theme.colors.text, marginTop: 4 }}>
+                      {selectedTrip.ratingScore != null ? `${selectedTrip.ratingScore}/5` : "Not rated"}
+                    </Text>
+
+                    {!!selectedTrip.ratingComment && (
+                      <Text style={{ marginTop: 6, fontSize: 13, color: theme.colors.textSecondary }}>
+                        {selectedTrip.ratingComment}
+                      </Text>
+                    )}
+                  </View>
+                </View>
               {/* Delete button */}
               <View style={{ paddingHorizontal: 0, paddingTop: 8 }}>
                 <Pressable

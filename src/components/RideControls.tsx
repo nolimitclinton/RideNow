@@ -29,7 +29,7 @@ export default function RideControls({ routeDistanceKm, priceEstimate, isSearchi
         <View style={{ marginBottom: 8 }}>
           <Text style={{ fontSize: 14, color: theme.colors.textSecondary, marginBottom: 2 }}>Estimated distance: {routeDistanceKm.toFixed(1)} km</Text>
           <Text style={{ fontSize: 16, fontWeight: "600", color: theme.colors.text }}>Estimated fare: ₦{priceEstimate ?? Math.round((routeDistanceKm ?? 0) * 500)}</Text>
-          <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>(₦500 per km)</Text>
+          {/* <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>(₦500 per km) */}
         </View>
         <LongButton text={isSearchingDriver ? "Searching for driver..." : "Confirm ride & find driver"} onPress={onConfirm} />
       </SafeAreaView>

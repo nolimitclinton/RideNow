@@ -6,7 +6,7 @@ export interface HistoryItemProp {
   name: string;
   carName: string;
   date: string;
-  time: string;
+  //time: string;
   originName?: string;
   destinationName?: string;
   price?: number; 
@@ -17,7 +17,7 @@ const HistoryItem = ({
   name,
   carName,
   date,
-  time,
+  //time,
   originName,
   destinationName,
   price,
@@ -55,7 +55,7 @@ const HistoryItem = ({
             ₦{price.toLocaleString()}
           </Text>
         )}
-        <Text style={styles(theme).timeText}>{time}</Text>
+        {/* <Text style={styles(theme).timeText}>{time}</Text> */}
         <Text style={styles(theme).dateText}>{date}</Text>
       </View>
     </Pressable>
