@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -48,18 +48,37 @@ export default function HomeScreen() {
   const navigation = useNavigation();
   const { user } = useAuth();
 
+  // Pricing helpers
+
+  const formatNaira = (amount: number) =>
+    `₦${Math.round(amount).toLocaleString("en-NG")}`;
+
+  const getFareRange = (baseFare: number) => {
+    const variance = 0.12; 
+    const min = baseFare * (1 - variance);
+    const max = baseFare * (1 + variance);
+    return { min, max };
+  };
+
+  const pickRandomFareInRange = (min: number, max: number) => {
+    const raw = min + Math.random() * (max - min);
+    return Math.round(raw / 50) * 50;
+  };
+
   // Location state
+
   const [location, setLocation] = useState<LatLng | null>(null);
   const [locationName, setLocationName] = useState<string>("");
   const [destinationMarker, setDestinationMarker] = useState<LatLng | null>(null);
   const [destinationName, setDestinationName] = useState<string>("");
 
   // Route state
+
   const [routeCoords, setRouteCoords] = useState<LatLng[]>([]);
   const [routeDistanceKm, setRouteDistanceKm] = useState<number | null>(null);
   const [priceEstimate, setPriceEstimate] = useState<number | null>(null);
-
   // Driver state
+
   const [isSearchingDriver, setIsSearchingDriver] = useState(false);
   const [driverLocation, setDriverLocation] = useState<LatLng | null>(null);
   const [isDriverMoving, setIsDriverMoving] = useState(false);
@@ -68,11 +87,11 @@ export default function HomeScreen() {
   const [selectedDriver, setSelectedDriver] = useState<string | null>(null);
   const [selectedCar, setSelectedCar] = useState<string | null>(null);
 
-  // NEW: offer details
+  // Offer details
   const [selectedCarYear, setSelectedCarYear] = useState<number | null>(null);
   const [selectedPlateNumber, setSelectedPlateNumber] = useState<string | null>(null);
 
-  // NEW: offer modal flow
+  // Offer modal flow
   const [showOfferModal, setShowOfferModal] = useState(false);
   const [loadingAnotherDriver, setLoadingAnotherDriver] = useState(false);
 
@@ -82,14 +101,15 @@ export default function HomeScreen() {
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [completedDriveId, setCompletedDriveId] = useState<string | null>(null);
 
+  const [finalFare, setFinalFare] = useState<number | null>(null);
+
   // Animation refs
   const mapRef = useRef<MapView | null>(null);
   const rotationAnim = useRef(new Animated.Value(0)).current;
   const lastRotationRef = useRef<number>(0);
 
-  // ---------------------------
   // Helpers: year + plate
-  // ---------------------------
+
   const randomCarYear = () => {
     const years = [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
     return years[Math.floor(Math.random() * years.length)];
@@ -103,20 +123,8 @@ export default function HomeScreen() {
   };
 
   const generateDriverOffer = () => {
-    const driverNames = [
-      "Ngozi Okafor",
-      "Chinedu Obi",
-      "Amaka Umeh",
-      "Femi Adewale",
-      "Bola Hassan",
-    ];
-    const carNames = [
-      "Toyota Corolla",
-      "Honda Civic",
-      "Ford Fiesta",
-      "Chevrolet Spark",
-      "Hyundai Accent",
-    ];
+    const driverNames = ["Ngozi Okafor", "Chinedu Obi", "Amaka Umeh", "Femi Adewale", "Bola Hassan"];
+    const carNames = ["Toyota Corolla", "Honda Civic", "Ford Fiesta", "Chevrolet Spark", "Hyundai Accent"];
 
     const driverName = driverNames[Math.floor(Math.random() * driverNames.length)];
     const carName = carNames[Math.floor(Math.random() * carNames.length)];
@@ -129,9 +137,26 @@ export default function HomeScreen() {
     setSelectedPlateNumber(plate);
   };
 
-  // ---------------------------
+  // Base fare + range 
+
+  const baseFare = useMemo(() => {
+    if (routeDistanceKm != null) return routeDistanceKm * PRICE_PER_KM;
+    if (priceEstimate != null) return priceEstimate;
+    return 0;
+  }, [routeDistanceKm, priceEstimate]);
+
+  const fareRange = useMemo(() => {
+    if (!baseFare || baseFare <= 0) return { min: 0, max: 0 };
+    return getFareRange(baseFare);
+  }, [baseFare]);
+
+  const fareMin = fareRange.min;
+  const fareMax = fareRange.max;
+
+  const computedFareForPayment = finalFare ?? baseFare;
+
   // Fetch route from OSRM
-  // ---------------------------
+
   const getRouteFromOSRM = async (
     start: LatLng,
     end: LatLng
@@ -156,10 +181,8 @@ export default function HomeScreen() {
       return { coords: [], distanceKm: 0 };
     }
   };
-
-  // ---------------------------
   // Animate driver along the route
-  // ---------------------------
+
   const animateDriver = useCallback(
     async (coords: LatLng[]) => {
       let currentIndex = 0;
@@ -182,9 +205,7 @@ export default function HomeScreen() {
 
         setDriverLocation(currentCoord);
         currentIndex++;
-        await new Promise((resolve) =>
-          setTimeout(resolve, DRIVER_ANIMATION_STEP)
-        );
+        await new Promise((resolve) => setTimeout(resolve, DRIVER_ANIMATION_STEP));
       }
 
       // Arrived -> payment modal (we save AFTER payment)
@@ -193,10 +214,8 @@ export default function HomeScreen() {
     },
     [rotationAnim]
   );
+  // Save completed drive to Firestore
 
-  // ---------------------------
-  // Save completed drive to Firestore (returns doc id)
-  // ---------------------------
   const saveCompletedDrive = async (payment?: {
     amount: number;
     method?: string;
@@ -204,7 +223,9 @@ export default function HomeScreen() {
   }) => {
     try {
       const distanceKm = routeDistanceKm ?? 0;
-      const price = distanceKm > 0 ? Math.round(distanceKm * PRICE_PER_KM) : null;
+      const price =
+        (finalFare != null ? Math.round(finalFare) : distanceKm > 0 ? Math.round(distanceKm * PRICE_PER_KM) : null);
+
       const uid = user?.uid ?? auth.currentUser?.uid ?? null;
 
       const docRef = await addDoc(collection(db, "completed_drives"), {
@@ -216,17 +237,18 @@ export default function HomeScreen() {
 
         driverName: selectedDriver ?? null,
         carName: selectedCar ?? null,
-
-        // ✅ NEW: store more car info
         carYear: selectedCarYear ?? null,
         plateNumber: selectedPlateNumber ?? null,
 
         distanceKm,
         pricePerKm: PRICE_PER_KM,
         price,
+        fareMin: fareMin ? Math.round(fareMin) : null,
+        fareMax: fareMax ? Math.round(fareMax) : null,
+        finalFare: finalFare != null ? Math.round(finalFare) : null,
+
         payment: payment ?? null,
 
-        // rating as flat fields (simpler)
         ratingScore: null,
         ratingComment: null,
         ratedAt: null,
@@ -243,9 +265,8 @@ export default function HomeScreen() {
     }
   };
 
-  // ---------------------------
-  // Find driver (NOW shows OFFER modal, does NOT start ride)
-  // ---------------------------
+  // Find driver 
+  
   const findDriver = async () => {
     if (isSearchingDriver || isDriverMoving) return;
     if (!location || routeCoords.length === 0) {
@@ -256,15 +277,25 @@ export default function HomeScreen() {
     setIsSearchingDriver(true);
     await new Promise((resolve) => setTimeout(resolve, DRIVER_SEARCH_DURATION));
     setIsSearchingDriver(false);
+    setFinalFare(null);
 
     generateDriverOffer();
     setLoadingAnotherDriver(false);
     setShowOfferModal(true);
   };
 
-  // Accept offer -> start simulation
+  // Accept offer -> lock fare + start simulation
+  
   const handleAcceptOffer = () => {
     if (!location || routeCoords.length === 0) return;
+
+    // Lock a final fare within the range (if baseFare exists)
+    if (baseFare > 0 && fareMin > 0 && fareMax > 0) {
+      const locked = pickRandomFareInRange(fareMin, fareMax);
+      setFinalFare(locked);
+    } else {
+      setFinalFare(null);
+    }
 
     // Init driver location & rotation
     setDriverLocation(location);
@@ -284,20 +315,15 @@ export default function HomeScreen() {
     animateDriver(routeCoords);
   };
 
-  // Reject offer -> find another driver and show new offer
+  // Reject offer -> show another offer
   const handleRejectOffer = async () => {
     setLoadingAnotherDriver(true);
-
-    // tiny delay so it feels like searching again
     await new Promise((r) => setTimeout(r, 900));
-
     generateDriverOffer();
     setLoadingAnotherDriver(false);
   };
-
-  // ---------------------------
   // Reset ride
-  // ---------------------------
+
   const resetRide = () => {
     setRideCompleted(false);
     setDestinationMarker(null);
@@ -321,6 +347,7 @@ export default function HomeScreen() {
     setShowPaymentModal(false);
     setShowRatingModal(false);
     setCompletedDriveId(null);
+    setFinalFare(null);
   };
 
   // Navigate to AddressInput screen
@@ -414,9 +441,12 @@ export default function HomeScreen() {
 
         setRouteCoords(coords);
         setRouteDistanceKm(distanceKm);
-        setPriceEstimate(
-          distanceKm > 0 ? Math.round(distanceKm * PRICE_PER_KM) : null
-        );
+
+        // Keep this if you still want it — but range uses baseFare anyway
+        setPriceEstimate(distanceKm > 0 ? Math.round(distanceKm * PRICE_PER_KM) : null);
+
+        // New trip => clear locked fare
+        setFinalFare(null);
 
         fitMapToRoute(selectedOrigin, selectedDestination);
       })();
@@ -439,14 +469,15 @@ export default function HomeScreen() {
     if (paymentProcessing) return;
     setPaymentProcessing(true);
 
-    await new Promise((r) => setTimeout(r, 1400)); // simulate payment
+    await new Promise((r) => setTimeout(r, 1400)); 
 
     setPaymentProcessing(false);
     setShowPaymentModal(false);
 
-    const price = routeDistanceKm ? Math.round(routeDistanceKm * PRICE_PER_KM) : 0;
+    const amountToCharge = finalFare ?? (routeDistanceKm ? Math.round(routeDistanceKm * PRICE_PER_KM) : 0);
+
     const payment = {
-      amount: price,
+      amount: amountToCharge,
       method: "simulated_card",
       paidAt: new Date(),
     };
@@ -510,21 +541,14 @@ export default function HomeScreen() {
       const address = await Location.reverseGeocodeAsync(center);
       if (address.length > 0) {
         const place = address[0];
-        setLocationName(
-          place.name || place.street || place.city || "Current Location"
-        );
+        setLocationName(place.name || place.street || place.city || "Current Location");
       }
     })();
   }, []);
 
   if (!location) {
     return (
-      <View
-        style={[
-          styles.loaderContainer,
-          { backgroundColor: theme.colors.background },
-        ]}
-      >
+      <View style={[styles.loaderContainer, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
         <Text style={[styles.loadingText, { color: theme.colors.text }]}>
           Getting Location...
@@ -539,11 +563,6 @@ export default function HomeScreen() {
     outputRange: ["-360deg", "0deg", "360deg"],
     extrapolate: "extend",
   });
-
-  const computedFare =
-    routeDistanceKm != null
-      ? Math.round(routeDistanceKm * PRICE_PER_KM)
-      : priceEstimate ?? 0;
 
   return (
     <SafeAreaView
@@ -596,7 +615,7 @@ export default function HomeScreen() {
         LIGHT_MAP_STYLE={LIGHT_MAP_STYLE}
       />
 
-      {/* ✅ Driver Offer Modal */}
+      {/* Driver Offer Modal */}
       <DriverOfferModal
         visible={showOfferModal}
         loadingAnother={loadingAnotherDriver}
@@ -606,17 +625,20 @@ export default function HomeScreen() {
         carName={selectedCar}
         carYear={selectedCarYear}
         plateNumber={selectedPlateNumber}
-        price={computedFare}
+        fareMin={Math.round(fareMin)}
+        fareMax={Math.round(fareMax)}
       />
 
-      {/* Payment Modal */}
+      {/* Payment Modal (pay locked finalFare) */}
       <PaymentModal
         visible={showPaymentModal}
-        amount={computedFare}
+        amount={computedFareForPayment}
         driverName={selectedDriver}
         driverCar={
           selectedCar
-            ? `${selectedCar}${selectedCarYear ? ` • ${selectedCarYear}` : ""}${selectedPlateNumber ? ` • ${selectedPlateNumber}` : ""}`
+            ? `${selectedCar}${selectedCarYear ? ` • ${selectedCarYear}` : ""}${
+                selectedPlateNumber ? ` • ${selectedPlateNumber}` : ""
+              }`
             : null
         }
         processing={paymentProcessing}
@@ -631,10 +653,13 @@ export default function HomeScreen() {
         onClose={() => setShowRatingModal(false)}
       />
 
-      {/* Controls */}
+      {/* Controls (show range until locked finalFare exists) */}
       <RideControls
         routeDistanceKm={routeDistanceKm}
         priceEstimate={priceEstimate}
+        fareMin={fareMin}
+        fareMax={fareMax}
+        finalFare={finalFare}
         isSearchingDriver={isSearchingDriver}
         isDriverMoving={isDriverMoving}
         rideCompleted={rideCompleted}

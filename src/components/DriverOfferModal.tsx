@@ -2,16 +2,22 @@ import React from "react";
 import { Modal, View, Text, Pressable, StyleSheet } from "react-native";
 import { useTheme } from "../store/ThemeProvider";
 
+const formatNaira = (amount: number) =>
+  `₦${Math.round(amount).toLocaleString("en-NG")}`;
+
 type Props = {
   visible: boolean;
   onAccept: () => void;
   onReject: () => void;
-  onClose?: () => void; 
+  onClose?: () => void;
+
   driverName: string | null;
   carName: string | null;
   carYear: number | null;
   plateNumber: string | null;
-  price: number;
+  fareMin: number; 
+  fareMax: number; 
+
   loadingAnother?: boolean;
 };
 
@@ -23,10 +29,13 @@ export default function DriverOfferModal({
   carName,
   carYear,
   plateNumber,
-  price,
+  fareMin,
+  fareMax,
   loadingAnother,
 }: Props) {
   const { theme } = useTheme();
+
+  const showRange = fareMin > 0 && fareMax > 0;
 
   return (
     <Modal visible={visible} transparent animationType="fade">
@@ -39,26 +48,41 @@ export default function DriverOfferModal({
           {!loadingAnother && (
             <>
               <View style={styles.row}>
-                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Driver</Text>
-                <Text style={[styles.value, { color: theme.colors.text }]}>{driverName ?? "-"}</Text>
+                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
+                  Driver
+                </Text>
+                <Text style={[styles.value, { color: theme.colors.text }]}>
+                  {driverName ?? "-"}
+                </Text>
               </View>
 
               <View style={styles.row}>
-                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Car</Text>
+                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
+                  Car
+                </Text>
                 <Text style={[styles.value, { color: theme.colors.text }]}>
                   {carName ? `${carName}${carYear ? ` • ${carYear}` : ""}` : "-"}
                 </Text>
               </View>
 
               <View style={styles.row}>
-                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Plate</Text>
-                <Text style={[styles.value, { color: theme.colors.text }]}>{plateNumber ?? "-"}</Text>
+                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
+                  Plate
+                </Text>
+                <Text style={[styles.value, { color: theme.colors.text }]}>
+                  {plateNumber ?? "-"}
+                </Text>
               </View>
 
               <View style={[styles.row, { marginTop: 10 }]}>
-                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Fare</Text>
+                <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
+                  Estimated fare
+                </Text>
+
                 <Text style={[styles.value, { color: theme.colors.text }]}>
-                  ₦{price.toLocaleString()}
+                  {showRange
+                    ? `${formatNaira(fareMin)} – ${formatNaira(fareMax)}`
+                    : "-"}
                 </Text>
               </View>
 
